@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Vapi SDK Test</title>
+  <script src="https://cdn.jsdelivr.net/npm/@vapi-ai/web/dist/vapi-web.js"></script>
+</head>
+<body>
+  <h1>Vapi SDK Test</h1>
+  <p>Open the browser's console (F12) to see Vapi events.</p>
+  <button id="startButton">Start Vapi Session</button>
+  <button id="stopButton" disabled>Stop Vapi Session</button>
+
+  <script>
+    const VAPI_API_KEY = "f4736f08-8f6b-498a-9e0d-d7279440f042"; // <-- REPLACE WITH YOUR ACTUAL KEY
+
+    let vapi = null;
+    let currentAssistant = null;
+
+    document.getElementById('startButton').addEventListener('click', startSession);
+    document.getElementById('stopButton').addEventListener('click', stopSession);
+
+    function initializeVapi() {
+       if (vapi) {
+         console.log("Vapi already initialized.");
+         return;
+       }
+       if (!VAPI_API_KEY || VAPI_API_KEY === "f4736f08-8f6b-498a-9e0d-d7279440f042") {
+         console.error("Vapi API key is not set. Please replace 'f4736f08-8f6b-498a-9e0d-d7279440f042' in the HTML file.");
+         return;
+       }
+       console.log("Initializing Vapi...");
+       try {
+          vapi = new Vapi(VAPI_API_KEY);
+
+          // Add event listeners
+          vapi.on('call-start', () => {
+            console.log('Event: call-start');
+            document.getElementById('startButton').disabled = true;
+            document.getElementById('stopButton').disabled = false;
+          });
+
+          vapi.on('call-end', () => {
+            console.log('Event: call-end');
+            document.getElementById('startButton').disabled = false;
+            document.getElementById('stopButton').disabled = true;
+            currentAssistant = null;
+          });
+
+          vapi.on('speech-start', () => {
+            console.log('Event: speech-start');
+          });
+
+          vapi.on('speech-end', () => {
+            console.log('Event: speech-end');
+          });
+
+          vapi.on('message', (message) => {
+            console.log('Event: message');
+            console.log('Message details:', message);
+            // This is the crucial log - look for its content property
+          });
+
+          vapi.on('error', (e) => {
+            console.error('Event: error', e);
+            document.getElementById('startButton').disabled = false;
+            document.getElementById('stopButton').disabled = true;
+            currentAssistant = null;
+          });
+
+          console.log("Vapi initialized successfully.");
+
+       } catch (error) {
+          console.error("Error initializing Vapi:", error);
+       }
+    }
+
+    async function startSession() {
+      initializeVapi();
+      if (!vapi) {
+        console.error("Vapi not initialized. Cannot start session.");
+        return;
+      }
+
+      console.log("Attempting to start Vapi session...");
+      try {
+         // Use a minimal assistant configuration for testing
+         // You might want to replace this with your specific assistant config
+        currentAssistant = await vapi.start({
+           name: 'Test Assistant', // Or your assistant's name/ID if required
+           model: {
+             provider: 'openai',
+             model: 'gpt-3.5-turbo' // Start with a basic model
+           },
+           voice: {
+             provider: '11labs', // Or another provider/voice you know works
+             voiceId: '21m00Tcm4TlvDq8ikWAM', // Example voice
+           },
+           systemPrompt: "You are a test agent. Say 'Hello, test complete.' when the session starts."
+        });
+        console.log("Vapi session start initiated.", currentAssistant);
+
+      } catch (error) {
+        console.error("Error starting Vapi session:", error);
+        document.getElementById('startButton').disabled = false;
+        document.getElementById('stopButton').disabled = true;
+        currentAssistant = null;
+      }
+    }
+
+    async function stopSession() {
+      if (vapi && currentAssistant) {
+         console.log("Attempting to stop Vapi session...");
+        try {
+          await vapi.stop();
+          console.log("Vapi session stop initiated.");
+        } catch (error) {
+          console.error("Error stopping Vapi session:", error);
+        }
+      }
+    }
+
+  </script>
+</body>
+</html>
