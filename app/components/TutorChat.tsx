@@ -9,10 +9,17 @@ interface Message {
   timestamp: Date;
 }
 
-export default function TutorChat() {
+interface TutorChatProps {
+  messages: Message[];
+  isSpeaking: boolean;
+  onToggleMute: () => void;
+  onEndSession: () => Promise<void>;
+  isMuted: boolean;
+}
+
+export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeaking }: TutorChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
@@ -29,9 +36,17 @@ export default function TutorChat() {
         let parsedData = null;
         if (typeof event.data.data === 'string') {
           try {
-            parsedData = JSON.parse(event.data.data);
+            // Only try to parse if it looks like JSON
+            if (event.data.data.trim().startsWith('{') || event.data.data.trim().startsWith('[')) {
+              parsedData = JSON.parse(event.data.data);
+            } else {
+              // Handle non-JSON string messages
+              console.log('Received non-JSON message:', event.data.data);
+              return;
+            }
           } catch (error) {
-            console.error('Failed to parse data as JSON:', event.data.data, error);
+            console.log('Message is not JSON:', event.data.data);
+            return;
           }
         }
 
@@ -46,19 +61,17 @@ export default function TutorChat() {
           } else if (parsedData.transcriptType === "interim") {
             console.log('app-message interim transcript:', parsedData);
           }
-        } else if (event.data.type === 'speech-start') {
-          console.log('speech-start message received (direct type):', event.data);
-          setIsSpeaking(true);
-        } else if (event.data.type === 'speech-end') {
-          console.log('speech-end message received (direct type):', event.data);
-          setIsSpeaking(false);
+        } else if (parsedData && typeof parsedData === 'object') {
+          if (parsedData.type === 'speech-start') {
+            console.log('Parsed speech-start message:', parsedData);
+          } else if (parsedData.type === 'speech-end') {
+            console.log('Parsed speech-end message:', parsedData);
+          }
         }
-      } else if (event.data && event.data.type === 'speech-start' && event.data.action !== 'app-message') {
-        console.log('speech-start message received (not app-message):', event.data);
-        setIsSpeaking(true);
-      } else if (event.data && event.data.type === 'speech-end' && event.data.action !== 'app-message') {
-        console.log('speech-end message received (not app-message):', event.data);
-        setIsSpeaking(false);
+      } else if (event.data && event.data.type === 'speech-start') {
+        console.log('speech-start message received (direct type):', event.data);
+      } else if (event.data && event.data.type === 'speech-end') {
+        console.log('speech-end message received (direct type):', event.data);
       }
     };
 
@@ -90,14 +103,25 @@ export default function TutorChat() {
     }
   };
 
+  const handleTogglePause = () => {
+    onToggleMute();
+  };
+
+  const handleStopConversation = async () => {
+    console.log('Stop conversation clicked');
+    await onEndSession();
+    setMessages([]);
+    setShowNotification(false);
+  };
+
   return (
     <>
       <button
         onClick={() => { setIsOpen(!isOpen); setShowNotification(false); }}
-        className="fixed bottom-4 right-4 bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors z-50 focus:outline-none"
+        className="fixed bottom-4 right-4 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-all duration-200 z-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
       >
         {showNotification && (
-          <span className="absolute top-0 right-0 block h-3 w-3 transform -translate-y-1/2 translate-x-1/2 rounded-full ring-2 ring-white bg-red-400"></span>
+          <span className="absolute top-0 right-0 block h-4 w-4 transform -translate-y-1/2 translate-x-1/2 rounded-full ring-2 ring-white bg-red-500 animate-pulse"></span>
         )}
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -113,29 +137,31 @@ export default function TutorChat() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black bg-opacity-50 z-40"
-                onClick={() => setIsFullScreen(false)} // Minimize chat when clicking outside overlay in full screen
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+                onClick={() => setIsFullScreen(false)}
               />
             )}
 
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className={`fixed bg-white shadow-xl flex flex-col z-50 overflow-auto rounded-lg ${isFullScreen ? '' : 'bottom-20 right-4 w-96 h-[500px]'}`}
-              style={{
-                ...(isFullScreen ? { top: '10%', left: '10%', right: '10%', bottom: '10%', width: '80%', height: '80%' } : {}),
-              }}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className={`fixed bg-white shadow-xl flex flex-col z-50 overflow-hidden rounded-lg ${
+                isFullScreen 
+                  ? 'top-[5%] left-[5%] right-[5%] bottom-[5%] w-[90%] h-[90%]' 
+                  : 'bottom-20 right-4 w-96 h-[500px]'
+              }`}
             >
-              <div className="p-4 border-b flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Tutor Chat</h3>
-                <div className="flex items-center">
+              <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-900">Tutor Chat</h3>
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => setIsFullScreen(!isFullScreen)}
-                    className="text-gray-500 hover:text-gray-700 mr-2"
+                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                     aria-label={isFullScreen ? 'Minimize chat' : 'Maximize chat'}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       {isFullScreen ? (
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m0 0l-3-3m3 3l3-3m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       ) : (
@@ -144,33 +170,65 @@ export default function TutorChat() {
                     </svg>
                   </button>
                   <button
-                    onClick={() => setIsOpen(false)}
-                    className="text-gray-500 hover:text-gray-700"
+                    onClick={handleTogglePause}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isMuted 
+                        ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
+                        : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
+                    }`}
+                    aria-label={isMuted ? 'Resume conversation' : 'Pause conversation'}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    {isMuted ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 6h4v12H6zm8 0h4v12h-4z" />
+                      </svg>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleStopConversation}
+                    className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                    aria-label="Stop conversation"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
                 {messages.map((message, index) => (
                   <motion.div
                     key={index}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
                     className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-lg p-3 ${
+                      className={`max-w-[80%] rounded-2xl p-4 shadow-sm ${
                         message.sender === 'user'
                           ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-800'
+                          : 'bg-white text-gray-800'
                       }`}
                     >
-                      <p className="whitespace-pre-wrap">{message.content}</p>
-                      <span className="text-xs opacity-70 mt-1 block">
+                      <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                      <span className={`text-xs mt-2 block ${
+                        message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
+                      }`}>
                         {message.timestamp.toLocaleTimeString()}
                       </span>
                     </div>
@@ -182,34 +240,38 @@ export default function TutorChat() {
                     animate={{ opacity: 1 }}
                     className="flex justify-start"
                   >
-                    <div className="bg-gray-100 rounded-lg p-3">
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
+                    <div className="bg-white rounded-2xl p-4 shadow-sm">
+                      <div className="flex space-x-2">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" />
+                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-100" />
+                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-200" />
                       </div>
                     </div>
                   </motion.div>
                 )}
               </div>
 
-              <div className="p-4 border-t flex items-center">
-                <input
-                  type="text"
-                  placeholder="Type your message..."
-                  className="flex-1 px-4 py-2 mr-2 border rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  value={inputValue}
-                  onChange={handleInputChange}
-                  onKeyPress={handleKeyPress}
-                />
-                <button
-                  onClick={handleSendMessage}
-                  className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Send
-                </button>
+              <div className="p-4 border-t bg-white">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Type your message..."
+                    className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onKeyPress={handleKeyPress}
+                  />
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!inputValue.trim()}
+                    className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                  </button>
+                </div>
               </div>
-
             </motion.div>
           </>
         )}

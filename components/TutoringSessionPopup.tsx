@@ -25,7 +25,7 @@ interface Note {
 interface TutoringSessionPopupProps {
   isOpen: boolean;
   onClose: () => void;
-  studyMode: 'question' | 'explanation' | 'summary' | 'practice';
+  studyMode: 'quiz' | 'explanation' | 'flashcards' | 'oral_exam';
   initialResponse: string | null;
   onEndSession: () => void;
 }

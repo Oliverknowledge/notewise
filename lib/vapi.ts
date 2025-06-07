@@ -1,4 +1,12 @@
+
 import Vapi from '@vapi-ai/web';
+
+// Add type extension for Vapi
+declare module '@vapi-ai/web' {
+  interface Vapi {
+    setPaused(paused: boolean): void;
+  }
+}
 
 const VAPI_API_KEY = process.env.NEXT_PUBLIC_VAPI_API_KEY || '';
 
@@ -19,6 +27,7 @@ export class VapiService {
   private isInitialized: boolean = false;
   private currentMode: StudyMode = 'explanation';
   private isMuted: boolean = false;
+  private isPaused: boolean = false;
   private currentSession: any = null;
   private callbacks: {
     onMessage?: (message: { content: string }) => void;
@@ -268,45 +277,39 @@ export class VapiService {
     }
 
     try {
-      console.log('Starting tutoring session with notes:', notes);
+      console.log('Starting tutoring session with notes:', {
+        notesLength: notes.length,
+        notesPreview: notes.substring(0, 200) + '...',
+        isSummary: notes.length < 1000 // Rough check if it's a summary
+      });
 
       try {
-        console.log('Attempting to start session with audio...', {
-          name: 'Tutor',
-          model: {
-            provider: 'openai',
-            model: 'gpt-4'
-          },
-          voice: {
-            provider: '11labs',
-            voiceId: '21m00Tcm4TlvDq8ikWAM',
-            speed: 0.8
-          }
-        });
+
 
         const assistant = await this.vapi.start({
           name: 'Tutor',
           model: {
             provider: 'openai',
-            model: 'gpt-4'
+            model: 'gpt-4',
+            messages: [{
+              role: "system",
+              content: `You are a friendly tutor, who doesn't talk for too long. Can you help the student with this topic : ${notes}`,
+            }]
           },
           voice: {
             provider: '11labs',
             voiceId: '21m00Tcm4TlvDq8ikWAM',
             speed: 0.8
-          }
+          },
+          
+          firstMessage: `Hey, I am your tutor. I can help you with this topic.`
+
+          
         });
 
-        if (!assistant) {
-          console.error('Vapi.start returned null or undefined for audio attempt.');
-          const audioErr = new Error('Failed to create assistant (audio)');
-          if (this.callbacks.onError) this.callbacks.onError(audioErr);
-          throw audioErr;
-        }
-
-        console.log('Successfully started session with audio', assistant);
-        this.currentSession = assistant;
-      } catch (audioError: any) {
+        
+      } 
+      catch (audioError) {
         console.warn('Audio initialization failed, falling back to text-only mode:', audioError);
         if (this.callbacks.onError) this.callbacks.onError(audioError);
 
@@ -317,27 +320,7 @@ export class VapiService {
             model: 'gpt-4'
           }
         });
-        const assistant = await this.vapi.start({
-          name: 'Tutor',
-          model: {
-            provider: 'openai',
-            model: 'gpt-4'
-          }
-        });
-
-        if (!assistant) {
-           console.error('Vapi.start returned null or undefined for text-only attempt.');
-           const textErr = new Error('Failed to create assistant (text-only)');
-            if (this.callbacks.onError) this.callbacks.onError(textErr);
-           throw textErr;
-        }
-
-        console.log('Successfully started session in text-only mode', assistant);
-        this.currentSession = assistant;
       }
-
-      console.log('Sending initial message with notes...');
-      this.sendTextMessage(`Please help me understand these notes: ${notes}`);
 
     } catch (error) {
       console.error('Failed to start tutoring session:', error);
@@ -348,19 +331,41 @@ export class VapiService {
   }
 
   public async endSession(): Promise<void> {
-    if (this.currentSession) {
-      if (typeof this.currentSession.end === 'function') {
-        await this.currentSession.end();
+    console.log('Ending Vapi session...');
+    try {
+      if (this.currentSession) {
+        if (typeof this.currentSession.end === 'function') {
+          console.log('Calling currentSession.end()');
+          await this.currentSession.end();
+        } else {
+          console.warn('currentSession.end is not a function. Attempting to use vapi.stop()');
+          if (this.vapi && typeof this.vapi.stop === 'function') {
+            await this.vapi.stop();
+          }
+        }
+        this.currentSession = null;
+        console.log('Session ended successfully');
       } else {
-        console.warn('currentSession.end is not a function. currentSession:', this.currentSession);
+        console.log('No active session to end');
       }
-      this.currentSession = null;
+    } catch (error) {
+      console.error('Error ending session:', error);
+      throw error;
     }
   }
 
   public sendTextMessage(content: string): void {
-    if (this.vapi && this.currentSession) {
-      console.log('Sending text message to Vapi:', content);
+    console.log('[VAPI] sendTextMessage called with content:', content);
+    console.log('[VAPI] Current vapi instance:', this.vapi ? 'exists' : 'null');
+    console.log('[VAPI] Current session:', this.currentSession ? 'exists' : 'null');
+    
+    if (!this.vapi) {
+      console.error('[VAPI] Cannot send message: vapi instance is null');
+      return;
+    }
+
+    try {
+      console.log('[VAPI] Attempting to send message...');
       this.vapi.send({
         type: 'add-message',
         message: {
@@ -368,20 +373,63 @@ export class VapiService {
           content: content
         }
       });
-    } else {
-      console.warn('Vapi or current session not available to send message.');
+      console.log('[VAPI] Message sent successfully');
+    } catch (error) {
+      console.error('[VAPI] Error sending message:', error);
     }
   }
 
   public toggleMute(): void {
-    if (this.currentSession) {
-      this.isMuted = !this.isMuted;
-      if (typeof this.currentSession.setMuted === 'function') {
-         this.currentSession.setMuted(this.isMuted);
+    console.log('Toggling mute state. Current state:', this.isMuted);
+    try {
+      if (this.currentSession) {
+        this.isMuted = !this.isMuted;
+        if (typeof this.currentSession.setMuted === 'function') {
+          console.log('Setting mute state to:', this.isMuted);
+          this.currentSession.setMuted(this.isMuted);
+        } else if (this.vapi && typeof this.vapi.setMuted === 'function') {
+          console.log('Using vapi.setMuted to set mute state to:', this.isMuted);
+          this.vapi.setMuted(this.isMuted);
+        } else {
+          console.warn('No mute function available on session or vapi instance');
+        }
       } else {
-         console.warn('currentSession.setMuted is not a function.', this.currentSession);
+        console.warn('No active session to toggle mute');
       }
+    } catch (error) {
+      console.error('Error toggling mute:', error);
+      // Revert mute state on error
+      this.isMuted = !this.isMuted;
     }
+  }
+
+  public togglePause(): void {
+    console.log('Toggling pause state. Current state:', this.isPaused);
+    try {
+      if (this.currentSession) {
+        this.isPaused = !this.isPaused;
+        if (this.vapi) {
+          console.log('Setting pause state to:', this.isPaused);
+          (this.vapi as any).setPaused(this.isPaused);
+        } else {
+          console.warn('No vapi instance available');
+        }
+      } else {
+        console.warn('No active session to toggle pause');
+      }
+    } catch (error) {
+      console.error('Error toggling pause:', error);
+      // Revert pause state on error
+      this.isPaused = !this.isPaused;
+    }
+  }
+
+  public isSessionPaused(): boolean {
+    return this.isPaused;
+  }
+
+  public isSessionMuted(): boolean {
+    return this.isMuted;
   }
 
   async cleanup() {

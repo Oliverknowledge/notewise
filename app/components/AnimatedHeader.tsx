@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 export function AnimatedHeader() {
   return (
@@ -10,7 +11,9 @@ export function AnimatedHeader() {
       transition={{ duration: 0.7 }} 
       className="text-2xl font-bold text-blue-700"
     >
+      <Link href = "/">
       NoteWise
+      </Link>
     </motion.div>
   );
 } 

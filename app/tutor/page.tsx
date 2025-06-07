@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from 'framer-motion';
 import { Mic, MicOff, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import TutorChat from '../components/TutorChat';
+import Link from 'next/link';
 
 type TutorMode = 'explain' | 'quiz' | 'summarize';
 
@@ -40,6 +41,41 @@ export default function TutorPage() {
 
   // State to display the current AI response in the main area
   const [currentResponse, setCurrentResponse] = useState<string | null>(null);
+
+  // Mute state for VapiService
+  const [isMutedState, setIsMutedState] = useState(false);
+  const [isPausedState, setIsPausedState] = useState(false);
+
+  useEffect(() => {
+    // Listen for mute state changes from VapiService (if it sends such events)
+    // or manage the state here based on user interaction.
+    // For now, let's assume VapiService's toggleMute updates its internal state.
+    // We'll update our local state when the button is clicked.
+  }, []);
+
+  const handleToggleMute = () => {
+    try {
+      console.log('Toggling mute state...');
+      vapiService.toggleMute();
+      setIsMutedState(vapiService.isSessionMuted());
+      console.log('Mute state toggled successfully');
+    } catch (err) {
+      console.error('Error toggling mute:', err);
+      setError(err instanceof Error ? err.message : 'Failed to toggle mute');
+    }
+  };
+
+  const handleTogglePause = () => {
+    try {
+      console.log('Toggling pause state...');
+      vapiService.togglePause();
+      setIsPausedState(vapiService.isSessionPaused());
+      console.log('Pause state toggled successfully');
+    } catch (err) {
+      console.error('Error toggling pause:', err);
+      setError(err instanceof Error ? err.message : 'Failed to toggle pause');
+    }
+  };
 
   // Listen for Vapi events to update chat messages and speaking state
   useEffect(() => {
@@ -84,6 +120,7 @@ export default function TutorPage() {
        console.log('handleCallEnd called');
        setIsSessionActive(false);
        setIsSpeakingState(false);
+       setIsMutedState(false); // Reset mute state on call end
        // Optionally clear messages or show a session ended message
     };
 
@@ -151,6 +188,7 @@ export default function TutorPage() {
     setError(null);
     setChatMessages([]); // Clear previous messages
     setIsSpeakingState(false);
+    setIsMutedState(false); // Ensure not muted at the start of a session
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -163,69 +201,56 @@ export default function TutorPage() {
         throw new Error('Please provide a title for your notes');
       }
 
+      // Upload file if present
+      let filePath = '';
       let contentToUse = content;
-      let filePath = null;
-
+      
       if (file) {
-        // Handle file upload and content extraction
-        const maxSize = 50 * 1024 * 1024; // 50MB
-        if (file.size > maxSize) {
-          throw new Error('File size exceeds 50MB limit');
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('userId', session.user.id);
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload file');
         }
 
-        const allowedTypes = [
-          'application/pdf',
-          'application/msword',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'text/plain'
-        ];
+        const uploadResult = await uploadResponse.json();
+        filePath = uploadResult.fileName;
+        // Use the AI-generated summary or fallback to text if summary is not available
 
-        if (!allowedTypes.includes(file.type)) {
-          throw new Error('File type not supported. Please upload PDF, DOC, DOCX, or TXT files only.');
-        }
+        contentToUse = uploadResult.summary || uploadResult.text || content;
 
-        // Upload file to Supabase Storage
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
-
-        const { data: fileData, error: uploadError } = await supabase.storage
-          .from('notes')
-          .upload(fileName, file, {
-            cacheControl: '3600',
-            upsert: false
-          });
-
-        if (uploadError) {
-          throw new Error(`File upload failed: ${uploadError.message}`);
-        }
-
-        filePath = fileName;
-        contentToUse = `Content from file: ${file.name}\n\n${content}`; // Keep existing text content if any
+        console.log('Content being sent to Vapi:', {
+          summary: uploadResult.summary,
+          originalText: uploadResult.text,
+          fallbackContent: content,
+          finalContent: contentToUse
+        });
       } else if (!contentToUse.trim()) {
-         throw new Error('Please provide some content or upload a file');
+        throw new Error('Please provide some content or upload a file');
+      }
+
+      // Ensure we have valid content before saving
+      if (!contentToUse || !contentToUse.trim()) {
+        throw new Error('No valid content available to save');
       }
 
       // Save note to database
       await saveNoteToDatabase(title, contentToUse, filePath);
 
-      // Start the tutoring session with Vapi
+      // Start the tutoring session with Vapi using the summarized content
+      console.log('Starting Vapi session with content:', contentToUse);
       await vapiService.startTutoringSession(contentToUse);
+      vapi
       setIsSessionActive(true);
 
-      // Add user's initial message to chat state
-      setChatMessages(prevMessages => [...prevMessages, {
-        content: `Please help me understand these notes: ${contentToUse}`,
-        sender: 'user',
-        timestamp: new Date()
-      }]);
-
-      // Add AI's initial welcome message to chat state
-      const welcomeMessage = "I'm ready to help you learn! What would you like to know about this content?";
-      setChatMessages(prevMessages => [...prevMessages, {
-        content: welcomeMessage,
-        sender: 'ai',
-        timestamp: new Date()
-      }]);
+      // Don't add any initial messages - let Vapi handle the conversation start
+      setChatMessages([]);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start tutoring session');
@@ -235,16 +260,24 @@ export default function TutorPage() {
 
   const endTutoringSession = async () => {
     try {
+      console.log('Ending tutoring session...');
+      setLoading(true);
       await vapiService.endSession();
       setIsSessionActive(false);
       setIsSpeakingState(false);
-      // Optionally clear chat messages here: setChatMessages([]);
+      setIsMutedState(false);
+      setCurrentResponse(null);
+      setChatMessages([]);
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
       }
+      console.log('Tutoring session ended successfully');
     } catch (err) {
+      console.error('Error ending session:', err);
       setError(err instanceof Error ? err.message : 'Failed to end session');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -270,183 +303,165 @@ export default function TutorPage() {
   };
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
-    // This mute is for the browser's audio element, need to mute Vapi as well
-    if (vapiService) {
-      vapiService.toggleMute();
-    }
-  };
-
-  const togglePause = () => {
-    setIsPaused(!isPaused);
-    // This pause is for the browser's audio element
-    // Vapi SDK might need a separate pause/resume call if available
+    // Mute state is now managed by handleToggleMute and passed down
+    console.log('toggleMute in page called - state is managed externally');
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-blue-700">AI Tutor</h1>
-          <Button variant="outline" onClick={() => router.push('/dashboard')}>Back to Dashboard</Button>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
+      <header className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            <Link href="/dashboard" className="text-2xl font-bold text-blue-600 hover:text-blue-700 transition-colors">
+              Notewise
+            </Link>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleToggleMute}
+                className={`hover:bg-gray-100 ${isMutedState ? 'text-red-600' : 'text-blue-600'}`}
+              >
+                {isMutedState ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleTogglePause}
+                className={`hover:bg-gray-100 ${isPausedState ? 'text-red-600' : 'text-blue-600'}`}
+              >
+                {isPausedState ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 6h4v12H6zm8 0h4v12h-4z" />
+                  </svg>
+                )}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={endTutoringSession}
+                className="hover:bg-red-100"
+              >
+                End Session
+              </Button>
+            </div>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-8">
-            <Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - Input Form */}
+          <div className="lg:col-span-1">
+            <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle>Upload Your Notes</CardTitle>
+                <CardTitle className="text-xl">Start a Tutoring Session</CardTitle>
               </CardHeader>
-              <CardContent>
-                <form className="space-y-4">
-                  <div>
-                    <Label htmlFor="title">Title</Label>
-                    <Input
-                      id="title"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Enter a title for your notes"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="content">Content</Label>
-                    <Textarea
-                      id="content"
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      placeholder="Paste your notes here or upload a file..."
-                      rows={6}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="file">Or Upload a File</Label>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title</Label>
+                  <Input
+                    id="title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Enter a title for your notes"
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="content">Content</Label>
+                  <Textarea
+                    id="content"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="Enter your notes or content to discuss"
+                    className="min-h-[200px] resize-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="file">Upload File (Optional)</Label>
+                  <div className="flex items-center gap-4">
                     <Input
                       id="file"
                       type="file"
                       onChange={handleFileChange}
                       accept=".pdf,.doc,.docx,.txt"
+                      className="flex-1"
                     />
+                    {file && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setFile(null)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        Clear
+                      </Button>
+                    )}
                   </div>
-                  <div>
-                    <Label>Tutor Mode</Label>
-                    <div className="grid grid-cols-3 gap-2 mt-2">
-                      <Button
-                        type="button"
-                        variant={tutorMode === 'explain' ? 'default' : 'outline'}
-                        onClick={() => setTutorMode('explain')}
-                        className="w-full"
-                      >
-                        Explain
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={tutorMode === 'quiz' ? 'default' : 'outline'}
-                        onClick={() => setTutorMode('quiz')}
-                        className="w-full"
-                      >
-                        Quiz
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={tutorMode === 'summarize' ? 'default' : 'outline'}
-                        onClick={() => setTutorMode('summarize')}
-                        className="w-full"
-                      >
-                        Summarize
-                      </Button>
-                    </div>
+                  <p className="text-sm text-gray-500">
+                    Supported formats: PDF, DOC, DOCX, TXT (max 50MB)
+                  </p>
+                </div>
+
+                <Button
+                  onClick={startTutoringSession}
+                  disabled={loading || !title.trim() || (!content.trim() && !file)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {loading ? 'Starting Session...' : 'Start Tutoring Session'}
+                </Button>
+
+                {error && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                    {error}
                   </div>
-                  <Button
-                    type="button"
-                    onClick={startTutoringSession}
-                    disabled={loading || isSessionActive}
-                    className="w-full"
-                  >
-                    {loading ? 'Starting Session...' : 'Start Tutoring Session'}
-                  </Button>
-                </form>
+                )}
               </CardContent>
             </Card>
           </div>
 
-          <div className="space-y-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Tutoring Session</CardTitle>
+          {/* Right Column - AI Response */}
+          <div className="lg:col-span-2">
+            <Card className="shadow-sm h-full">
+              <CardHeader className="border-b">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-xl">AI Tutor Response</CardTitle>
+                </div>
               </CardHeader>
-              <CardContent>
-                {error && (
-                  <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded mb-4">
-                    {error}
-                  </div>
-                )}
-
+              <CardContent className="p-6">
                 {isSessionActive ? (
-                  <div className="space-y-4">
-                    {/* Display the current response here */}
-                    <div className="bg-white rounded-lg p-4 shadow-sm">
-                      <p className="text-gray-700">{currentResponse}</p>
-                    </div>
-                    <div className="flex justify-center space-x-4">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={toggleMute}
-                        className="rounded-full"
-                      >
-                        {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={togglePause}
-                        className="rounded-full"
-                      >
-                        {isPaused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={endTutoringSession}
-                        className="rounded-full"
-                      >
-                        <MicOff className="h-5 w-5" />
-                      </Button>
-                    </div>
-                    <audio ref={audioRef} className="hidden" />
+                  <div className="prose prose-blue max-w-none">
+                    {currentResponse ? (
+                      <div className="whitespace-pre-wrap">{currentResponse}</div>
+                    ) : (
+                      <div className="text-center text-gray-500 py-8">
+                        <p>Start speaking or type your question in the chat</p>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Mic className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <p>Start a tutoring session to begin learning with your AI tutor</p>
+                  <div className="text-center text-gray-500 py-8">
+                    <p>Start a tutoring session to begin learning</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Tips</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-gray-600">
-                  <li>• You can paste your notes directly or upload a file</li>
-                  <li>• Choose between explanation, quiz, or summary modes</li>
-                  <li>• Use the controls to pause, mute, or end the session</li>
-                  <li>• Ask follow-up questions to dive deeper into topics</li>
-                </ul>
               </CardContent>
             </Card>
           </div>
         </div>
       </main>
 
-      <TutorChat 
+      <TutorChat
         messages={chatMessages}
         isSpeaking={isSpeakingState}
-        onSendMessage={handleUserMessage}
+        onToggleMute={handleToggleMute}
+        onEndSession={endTutoringSession}
+        isMuted={isMutedState}
       />
     </div>
   );
