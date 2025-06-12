@@ -329,7 +329,7 @@ export default function TutorPage() {
 
   const handleUserMessage = (messageContent: string) => {
     if (!messageContent.trim() || !isSessionActive) return;
-
+    console.log("message content", messageContent )
     const newUserMessage: Message = {
       content: messageContent,
       sender: 'user',

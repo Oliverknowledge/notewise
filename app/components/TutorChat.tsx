@@ -96,6 +96,7 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
   };
 
   const handleSendMessage = () => {
+    console.log(inputValue)
     if (inputValue.trim()) {
       onSendMessage(inputValue.trim());
       setInputValue('');

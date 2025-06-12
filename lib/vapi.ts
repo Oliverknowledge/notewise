@@ -340,7 +340,7 @@ Guidelines:
     if (!this.vapi) {
       return;
     }
-
+    console.log(content)
     try {
       this.vapi.send({
         type: 'add-message',
