@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useRef, forwardRef, useImperativeHandle, useLayoutEffect } from 'react';
+'use client';
+
+import React, { useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { X, Mic, MicOff, Send, BookOpen, CheckCircle2, Circle } from 'lucide-react';
+import { X, Volume2, VolumeX, Send, CheckCircle2, Circle } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Volume2, VolumeX } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
 import { addStudySessionXP } from '@/lib/gamification';
 import { toast } from 'sonner';
@@ -34,7 +35,6 @@ interface TutoringSessionPopupProps {
   onEndSession: () => void;
 }
 
-// Generate a unique ID for messages
 const generateMessageId = () => {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
@@ -56,7 +56,6 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  // Set session start time when popup opens
   useEffect(() => {
     if (isOpen) {
       setSessionStartTime(new Date());
@@ -65,7 +64,6 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
     }
   }, [isOpen]);
 
-  // Check if audio is available
   useEffect(() => {
     const checkAudioSupport = async () => {
       try {
@@ -74,14 +72,12 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
         
         setAudioAvailable(true);
       } catch (error) {
-        console.warn('Audio not available:', error);
         setAudioAvailable(false);
       }
     };
     checkAudioSupport();
   }, []);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     if (viewportRef.current) {
       const scrollContainer = viewportRef.current;
@@ -89,10 +85,8 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
     }
   }, [messages]);
 
-  // Initialize messages with the initial response
   useEffect(() => {
     if (initialResponse && initialResponse.trim()) {
-      console.log('Setting initial response:', initialResponse);
       const initialMessage: Message = {
         id: generateMessageId(),
         content: studyMode === 'feynman' 
@@ -101,22 +95,17 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
         sender: 'ai',
         timestamp: new Date()
       };
-      console.log('Adding initial message:', initialMessage);
       setMessages([initialMessage]);
     }
   }, [initialResponse, studyMode]);
 
-  // Listen for new messages from the AI
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      console.log('Received message event:', event.data);
-
-      if (event.data.action === 'app-message') {
+      if (event.data && event.data.action === 'app-message') {
         try {
           const data = JSON.parse(event.data.data);
           
           if (data.type === 'conversation-update') {
-            // Map the conversation array to Message[] format (user and assistant only)
             const newMessages: Message[] = data.conversation
               .filter((msg: any) => msg.role === 'assistant' || msg.role === 'user')
               .map((msg: any) => ({
@@ -127,13 +116,11 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
               }));
             setMessages(newMessages);
 
-            // Extract key points/questions from the latest assistant message only
             const lastAssistant = [...data.conversation].reverse().find((msg: any) => msg.role === 'assistant');
             if (lastAssistant) {
               const keyPointRegex = /\[KEY_POINT\](.*?)\[\/KEY_POINT\]/g;
               const questionRegex = /\[QUESTION\](.*?)\[\/QUESTION\]/g;
 
-              // Extract and add key points
               const keyPointMatches = Array.from(lastAssistant.content.matchAll(keyPointRegex)) as RegExpMatchArray[];
               keyPointMatches.forEach((match) => {
                 const keyPointContent = match[1].trim();
@@ -148,7 +135,6 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
                 }
               });
 
-              // Extract and add questions
               const questionMatches = Array.from(lastAssistant.content.matchAll(questionRegex)) as RegExpMatchArray[];
               questionMatches.forEach((match) => {
                 const questionContent = match[1].trim();
@@ -170,23 +156,18 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
           console.error('Error processing VAPI message:', error);
         }
       } else if (event.data.type === 'speech-start') {
-        console.log('Speech started');
         setIsSpeaking(true);
       } else if (event.data.type === 'speech-end') {
-        console.log('Speech ended');
         setIsSpeaking(false);
       }
     };
 
-    console.log('Setting up message event listener');
     window.addEventListener('message', handleMessage);
     return () => {
-      console.log('Cleaning up message event listener');
       window.removeEventListener('message', handleMessage);
     };
   }, []);
 
-  // Prevent scrolling when popup is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -202,7 +183,6 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
     const trimmedInput = userInput.trim();
     if (!trimmedInput) return;
 
-    // Add user message to chat
     const userMessage: Message = {
       id: generateMessageId(),
       content: trimmedInput,
@@ -212,18 +192,7 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
     setMessages(prev => [...prev, userMessage]);
     setUserInput('');
 
-    // Debug logs
-    console.log('[TutoringSessionPopup] handleSendMessage called');
-    console.log('[TutoringSessionPopup] vapiService:', vapiService);
-    if (vapiService) {
-      console.log('[TutoringSessionPopup] vapiService.getVapiInstance():', vapiService.getVapiInstance());
-      console.log('[TutoringSessionPopup] vapiService.getCurrentSession():', vapiService.getCurrentSession());
-    }
-    console.log('[TutoringSessionPopup] Sending text message:', trimmedInput);
-
-    // Send message to VAPI service
     vapiService.sendTextMessage(trimmedInput);
-    console.log('[TutoringSessionPopup] sendTextMessage called');
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -247,21 +216,19 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
   const handleEndSession = async () => {
     try {
       if (sessionStartTime) {
-        const sessionEndTime = new Date();
-        const durationMinutes = Math.round((sessionEndTime.getTime() - sessionStartTime.getTime()) / (1000 * 60));
+        // The XP logic was moved to session start in app/dashboard/page.tsx
+        // No longer need to calculate and add XP here based on duration.
+        // const sessionEndTime = new Date();
+        // const durationMinutes = Math.round((sessionEndTime.getTime() - sessionStartTime.getTime()) / (1000 * 60));
         
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          // Award XP for the session
-          const result = await addStudySessionXP(user.id, durationMinutes);
-          
-          // Show XP gained notification
-          toast.success(`Session completed! You gained ${result.xpGained} XP${result.streakBonus > 1 ? ` (${Math.round((result.streakBonus - 1) * 100)}% streak bonus!)` : ''}`);
-        }
+        // const { data: { user } } = await supabase.auth.getUser();
+        // if (user) {
+        //   const result = await addStudySessionXP(user.id, durationMinutes);
+        //   
+        //   toast.success(`Session completed! You gained ${result.xpGained} XP${result.streakBonus > 1 ? ` (${Math.round((result.streakBonus - 1) * 100)}% streak bonus!)` : ''}`);
+        // }
       }
       
-      // Call the original onEndSession
       onEndSession();
     } catch (error) {
       console.error('Error ending session:', error);
@@ -269,7 +236,6 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
     }
   };
 
-  // Expose a cleanup method to parent
   useImperativeHandle(ref, () => ({
     cleanup: () => {
       setMessages([]);

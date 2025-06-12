@@ -10,7 +10,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white">
       <header className="w-full py-6 px-8 flex justify-between items-center bg-white/80 shadow-sm fixed top-0 left-0 right-0 z-50">
         <Link href="/" className="text-2xl font-bold text-blue-600">
-          EchoStudy
+          Notewise
         </Link>
         <nav className="space-x-4">
           <Link href="/login" className="text-gray-600 hover:text-blue-600 transition-colors">

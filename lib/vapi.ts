@@ -1,4 +1,3 @@
-
 import Vapi from '@vapi-ai/web';
 
 // Add type extension for Vapi
@@ -29,6 +28,7 @@ export class VapiService {
   private isMuted: boolean = false;
   private isPaused: boolean = false;
   private currentSession: any = null;
+  private keepAliveInterval: NodeJS.Timeout | null = null;
   private callbacks: {
     onMessage?: (message: { content: string }) => void;
     onSpeechStart?: () => void;
@@ -41,82 +41,58 @@ export class VapiService {
     this.initialize();
   }
 
-  private async initialize() {
-    const apiKey = process.env.NEXT_PUBLIC_VAPI_API_KEY;
-    if (!apiKey) {
-      console.error('Vapi API key is missing. Please add NEXT_PUBLIC_VAPI_API_KEY to your .env.local file.');
-      if (this.callbacks.onError) this.callbacks.onError(new Error('Vapi API key missing'));
-      return;
-    }
+  private initialize() {
+    if (typeof window === 'undefined') return;
 
     try {
-      this.vapi = new Vapi(apiKey);
-      this.isInitialized = true;
-
-      this.vapi.on('call-end', () => {
-        console.log('Vapi call ended');
-        if (this.callbacks.onCallEnd) this.callbacks.onCallEnd();
-        if (this.currentSession) {
-          this.handleDisconnection();
-        }
-      });
-
-      this.vapi.on('error', (error: any) => {
-        console.error('Vapi error event:', error);
-        if (this.callbacks.onError) this.callbacks.onError(error);
-        if (error?.message?.includes('Meeting has ended') || error?.message?.includes('Meeting ended due to ejection')) {
-          console.log('Meeting was ejected, attempting to reconnect...');
-          this.handleMeetingEjection();
-        } else if (this.currentSession) {
-          this.handleDisconnection();
-        }
-      });
-      
-      this.vapi.on('message', (message: any) => { 
-        console.log('Vapi.on(\'message\') triggered.');
-        console.log('Raw Vapi message object:', message);
-
-        try {
-          if (message?.data) {
-            const parsedData = JSON.parse(message.data);
-            console.log('Parsed message data:', parsedData);
-
-            if (parsedData?.type === 'transcript' && parsedData?.transcript) {
-              console.log('Transcript content found. Calling onMessage callback.');
-              if (this.callbacks.onMessage) this.callbacks.onMessage({ content: parsedData.transcript });
-            } else {
-              console.warn('Parsed data is not a valid transcript message or has no content:', parsedData);
-            }
-          } else {
-             console.warn('Received Vapi message with no data property:', message);
-          }
-        } catch (e) {
-           console.error('Error parsing Vapi message data:', e, message);
-        }
-      });
+      this.vapi = new Vapi(VAPI_API_KEY);
 
       this.vapi.on('speech-start', () => {
-        console.log('Speech started');
         if (this.callbacks.onSpeechStart) this.callbacks.onSpeechStart();
       });
 
       this.vapi.on('speech-end', () => {
-        console.log('Speech ended');
         if (this.callbacks.onSpeechEnd) this.callbacks.onSpeechEnd();
       });
 
-      if (typeof window !== 'undefined') {
-         window.addEventListener('message', (event) => {
-            if (event.data.type === 'toggle-mute' && this.vapi) {
-               this.toggleMute();
-             }
-           });
-         }
+      this.vapi.on('message', (message: { content: string }) => {
+        if (this.callbacks.onMessage) this.callbacks.onMessage(message);
+      });
 
+      this.vapi.on('call-end', () => {
+        this.stopKeepAlive();
+        if (this.callbacks.onCallEnd) this.callbacks.onCallEnd();
+           });
+
+      this.isInitialized = true;
     } catch (error) {
-      console.error('Error initializing Vapi:', error);
+      console.error('Failed to initialize VapiService:', error);
       this.isInitialized = false;
-      if (this.callbacks.onError) this.callbacks.onError(error);
+    }
+  }
+
+  private startKeepAlive() {
+    // Clear any existing keepAlive interval
+    this.stopKeepAlive();
+    
+    // Send a minimal message every 30 seconds to keep the connection alive
+    this.keepAliveInterval = setInterval(() => {
+      if (this.vapi && !this.isPaused) {
+        this.vapi.send({
+          type: 'add-message',
+          message: {
+            role: 'system',
+            content: ' '  // Empty space to prevent speech
+          }
+        });
+      }
+    }, 30000); // 30 seconds
+  }
+
+  private stopKeepAlive() {
+    if (this.keepAliveInterval) {
+      clearInterval(this.keepAliveInterval);
+      this.keepAliveInterval = null;
     }
   }
 
@@ -128,11 +104,9 @@ export class VapiService {
     onCallEnd?: () => void;
   }) {
     this.callbacks = callbacks;
-    console.log('VapiService callbacks set:', this.callbacks);
   }
 
   private async handleDisconnection() {
-    console.log('Handling disconnection...');
     try {
       await this.endSession();
     } catch (error) {
@@ -163,113 +137,15 @@ export class VapiService {
     this.currentMode = mode;
   }
 
-  private getModeSpecificPrompt(notes: string): string {
-    const basePrompt = `You are a friendly and knowledgeable tutor. Your goal is to help the student understand their study materials.
-    
-    The student has provided the following notes:
-    ${notes}
-    
-    CRITICAL FORMATTING RULES:
-    1. NEVER use mathematical symbols or notation. Always use plain English:
-       - Say "fraction" instead of "frac"
-       - Say "square root" instead of "sqrt"
-       - Say "squared" instead of "^2" or "to the power of two"
-       - Say "divided by" instead of "/"
-       - Say "multiplied by" instead of "×"
-       - Say "equals" instead of "="
-       - Say "plus" instead of "+"
-       - Say "minus" instead of "-"
-       - Say "number sign" or "pound sign" instead of "hash" or "#"
-    2. Keep responses concise and to the point
-    3. Speak slowly and clearly
-    4. Use simple, everyday language
-    5. NEVER use special characters or symbols
-    6. NEVER use programming notation or technical symbols
-    
-  
-    
-    The system will automatically extract these and display them in a separate notes section.
-    
-    Remember:
-    - Always use complete words, never abbreviations
-    - Never use symbols or special characters
-    - Say "number sign" or "pound sign" instead of "hash" or "#"
-    - Keep explanations simple and clear
-    - Use everyday language that's easy to understand when spoken aloud
-    - If you need to refer to the # symbol, say "number sign" or "pound sign"`;
-
-    switch (this.currentMode) {
-      case 'question':
-        return `${basePrompt}
-        
-        You are in question mode. Your role is to:
-        - Ask ONE question at a time
-        - Keep questions short and focused
-        - Wait for the student's response before asking another question
-        - If the student answers correctly, acknowledge it and ask a follow-up question
-        - If the student struggles, provide a brief hint and then ask the same question again
-        - Keep questions focused on understanding the material
-        - Use questions to guide the student's learning
-        - Never ask multiple questions at once
-        - Always format your questions using [QUESTION] tags so they appear in the notes section
-        - Never use symbols or special characters in your questions
-        - If you need to refer to the # symbol, say "number sign" or "pound sign"`;
-      
-      case 'explanation':
-        return `${basePrompt}
-        
-        You are in explanation mode. Your role is to:
-        - Explain concepts clearly and thoroughly but concisely
-        - Use simple examples and analogies
-        - Break down complex ideas into simpler parts
-        - Keep explanations brief and to the point
-        - Encourage questions and discussion
-        - Provide real-world applications when relevant
-        - Use [KEY_POINT] tags to highlight important concepts
-        - Use [QUESTION] tags to check understanding
-        - Never use symbols or special characters in your explanations
-        - If you need to refer to the # symbol, say "number sign" or "pound sign"`;
-      
-      case 'summary':
-        return `${basePrompt}
-        
-        You are in summary mode. Your role is to:
-        - Provide concise summaries of key concepts
-        - Highlight main points and important details
-        - Create connections between different topics
-        - Help the student organize their understanding
-        - Focus on the most important information
-        - Keep summaries brief and clear
-        - Use [KEY_POINT] tags for main takeaways
-        - Use [QUESTION] tags to reinforce learning
-        - Never use symbols or special characters in your summaries
-        - If you need to refer to the # symbol, say "number sign" or "pound sign"`;
-      
-      case 'practice':
-        return `${basePrompt}
-        
-        You are in practice mode. Your role is to:
-        - Create simple practice scenarios and problems
-        - Guide the student through solving problems
-        - Provide clear, concise feedback
-        - Help them develop problem-solving strategies
-        - Build their confidence through practice
-        - Keep explanations brief and focused
-        - Use [KEY_POINT] tags for important steps or concepts
-        - Use [QUESTION] tags for practice problems
-        - Never use symbols or special characters in your practice problems
-        - If you need to refer to the # symbol, say "number sign" or "pound sign"`;
-      
-      default:
-        return basePrompt;
-    }
-  }
-
-  public async startTutoringSession(notes: string): Promise<void> {
+  public async startTutoringSession(notes: string, mode: string, title: string, bedtimeMode: boolean): Promise<void> {
+    // Ensure Vapi is initialized (will re-initialize if nulled out from previous endSession)
     if (!this.isInitialized || !this.vapi) {
-      const initError = new Error('Vapi service is not initialized. Please check your API key in .env.local');
-      if (this.callbacks.onError) this.callbacks.onError(initError);
-      throw initError;
+      this.initialize();
+      if (!this.isInitialized || !this.vapi) {
+        const initError = new Error('Vapi service could not be initialized. Please check your API key in .env.local');
+        if (this.callbacks.onError) this.callbacks.onError(initError);
+        throw initError;
+      }
     }
 
     if (this.currentSession) {
@@ -277,95 +153,195 @@ export class VapiService {
     }
 
     try {
-      console.log('Starting tutoring session with notes:', {
-        notesLength: notes.length,
-        notesPreview: notes.substring(0, 200) + '...',
-        isSummary: notes.length < 1000 // Rough check if it's a summary
-      });
-
       try {
+        if (mode === "explain") {
+          await this.vapi.start({
+            name: 'Tutor',
+            model: {
+              provider: 'openai',
+              model: 'gpt-4',
+              messages: [{
+                role: "system",
+                content: `You are an expert tutor specializing in ${title}. Your goal is to help students understand complex topics through clear, engaging explanations.
 
+Key behaviors:
+1. Break down complex concepts into digestible parts
+2. Use analogies and real-world examples to illustrate points
+3. Check for understanding by asking brief comprehension questions
+4. Adapt your explanation pace based on student responses
+5. Provide visual descriptions when explaining spatial or complex concepts
+6. Connect new information to previously learned concepts
 
-        const assistant = await this.vapi.start({
-          name: 'Tutor',
-          model: {
-            provider: 'openai',
-            model: 'gpt-4',
-            messages: [{
-              role: "system",
-              content: `You are a friendly tutor, who doesn't talk for too long. Can you help the student with this topic : ${notes}`,
-            }]
-          },
-          voice: {
-            provider: '11labs',
-            voiceId: '21m00Tcm4TlvDq8ikWAM',
-            speed: 0.8
-          },
-          
-          firstMessage: `Hey, I am your tutor. I can help you with this topic.`
+Current topic: ${notes}
 
-          
-        });
+When listing, say first, second and third, not hash hash hash 1.
 
-        
-      } 
-      catch (audioError) {
+Guidelines:
+- Keep explanations easy to understand and quite short.
+- Use simple language while maintaining accuracy
+- Encourage questions and interaction
+- Provide practical applications of the concepts
+- Summarize key points periodically
+- Use the Socratic method to guide understanding
+- Acknowledge and build upon student responses
+
+Remember to:
+- Start with an overview of the topic
+- Explain one concept at a time
+- Use examples to reinforce understanding
+- Check comprehension regularly
+- End with a summary of key points`
+              }]
+            },
+            voice: {
+              provider: '11labs',
+              voiceId: '21m00Tcm4TlvDq8ikWAM',
+              speed: bedtimeMode ? 0.6 : 0.8
+            },
+            firstMessage: `Hi! I'm your tutor for ${title}. I'll help you understand this topic thoroughly. Let's start with an overview - what aspects would you like to focus on first?`
+          });
+        } else if (mode === "quiz") {
+              await this.vapi.start({
+            name: 'Tutor',
+            model: {
+              provider: 'openai',
+              model: 'gpt-4',
+              messages: [{
+                role: "system",
+                content: `You are an expert tutor specializing in ${title}, focusing on interactive learning through progressive questioning.
+Key behaviors:
+1. Start with basic comprehension questions
+2. Gradually increase difficulty based on student responses
+3. Provide constructive feedback on answers
+4. Use hints when students struggle
+5. Connect questions to real-world applications
+6. Encourage critical thinking and problem-solving
+7. Maintain a supportive and encouraging tone
+
+When listing, say first, second and third, not ###1. 
+
+Current topic: ${notes}
+
+Question progression strategy:
+1. Begin with foundational knowledge questions
+2. Move to application questions
+3. Progress to analysis and evaluation
+4. Challenge with synthesis and creation questions
+5. Include problem-solving scenarios
+
+Guidelines:
+- Ask one question at a time
+- Provide immediate feedback
+- Use hints before giving answers
+- Connect questions to previous answers
+- Vary question types (multiple choice, open-ended, scenario-based)
+- Include practical examples
+- Encourage explanation of reasoning
+
+Remember to:
+- Start with easier questions to build confidence
+- Increase difficulty gradually
+- Provide positive reinforcement
+- Use mistakes as learning opportunities
+- End with a review of key concepts`
+              }]
+            },
+            voice: {
+              provider: '11labs',
+              voiceId: '21m00Tcm4TlvDq8ikWAM',
+              speed: bedtimeMode ? 0.6 : 0.8
+            },
+            firstMessage: `Hi! I'm your tutor for ${title}. I'll help you master this topic through practice questions. Let's start with some basic questions to check your understanding. Ready?`
+          });
+        } else if (mode === "feynman") {
+          await this.vapi.start({
+            name: 'Tutor',
+            model: {
+              provider: 'openai',
+              model: 'gpt-4',
+              messages: [{
+                role: "system",
+                content: `You are an expert tutor implementing the Feynman Technique for ${title}. Your role is to act as a complete beginner who needs to learn the topic from scratch.
+
+                Key behaviors:
+1. Ask the student to explain concepts as if teaching a complete beginner
+2. Identify gaps in understanding through targeted questions
+3. Request clarification when explanations become too complex
+4. Encourage the use of simple language and analogies
+5. Help identify areas where the student's understanding is unclear
+6. Guide the student to break down complex ideas into simpler parts
+
+Current topic: ${notes}
+
+Feynman Technique implementation:
+1. Ask the student to explain the concept in simple terms
+2. Identify knowledge gaps through questioning
+3. Guide the student to simplify and clarify their explanation
+4. Help them identify and fill in missing pieces
+5. Encourage the use of analogies and examples
+6. Review and refine the explanation
+
+Guidelines:
+- Act as a curious beginner
+- Ask "why" and "how" questions
+- Request clarification when explanations are unclear
+- Encourage the use of simple language
+- Help identify assumptions and gaps
+- Guide the student to improve their understanding`
+              }]
+            },
+            voice: {
+              provider: '11labs',
+              voiceId: '21m00Tcm4TlvDq8ikWAM',
+              speed: bedtimeMode ? 0.6 : 0.8
+            },
+            firstMessage: `Hi! I'm a complete beginner trying to learn about ${title}. Could you explain this topic to me in simple terms? I know nothing about it, so please start from the very basics.`
+          });
+        }
+        this.startKeepAlive(); // Start keep-alive when session starts
+      } catch (audioError) {
         console.warn('Audio initialization failed, falling back to text-only mode:', audioError);
         if (this.callbacks.onError) this.callbacks.onError(audioError);
-
-        console.log('Attempting to start session in text-only mode...', {
-          name: 'Tutor',
-          model: {
-            provider: 'openai',
-            model: 'gpt-4'
-          }
-        });
       }
-
     } catch (error) {
       console.error('Failed to start tutoring session:', error);
-      console.error('Detailed Vapi start error:', JSON.stringify(error, null, 2));
       if (this.callbacks.onError) this.callbacks.onError(error);
       throw new Error(error instanceof Error ? error.message : 'Failed to start tutoring session');
     }
   }
 
   public async endSession(): Promise<void> {
-    console.log('Ending Vapi session...');
-    try {
-      if (this.currentSession) {
-        if (typeof this.currentSession.end === 'function') {
-          console.log('Calling currentSession.end()');
-          await this.currentSession.end();
-        } else {
-          console.warn('currentSession.end is not a function. Attempting to use vapi.stop()');
-          if (this.vapi && typeof this.vapi.stop === 'function') {
-            await this.vapi.stop();
-          }
-        }
+    if (this.vapi && this.currentSession) {
+      console.log('Ending Vapi session...');
+      try {
+        // Stop the Vapi call
+        await this.vapi.stop();
+
+        // Remove all listeners to prevent memory leaks and ensure complete cleanup
+        this.vapi.removeAllListeners();
+
         this.currentSession = null;
-        console.log('Session ended successfully');
-      } else {
-        console.log('No active session to end');
+        this.stopKeepAlive();
+        this.isMuted = false;
+        this.isPaused = false;
+        this.vapi = null; // Explicitly nullify the Vapi instance
+        this.isInitialized = false; // Reset initialization state
+        console.log('Vapi session ended.');
+      } catch (error) {
+        console.error('Error stopping Vapi session:', error);
+        if (this.callbacks.onError) this.callbacks.onError(error);
       }
-    } catch (error) {
-      console.error('Error ending session:', error);
-      throw error;
+    } else {
+      console.log('No active Vapi session to end.');
     }
   }
 
   public sendTextMessage(content: string): void {
-    console.log('[VAPI] sendTextMessage called with content:', content);
-    console.log('[VAPI] Current vapi instance:', this.vapi ? 'exists' : 'null');
-    console.log('[VAPI] Current session:', this.currentSession ? 'exists' : 'null');
-    
     if (!this.vapi) {
-      console.error('[VAPI] Cannot send message: vapi instance is null');
       return;
     }
 
     try {
-      console.log('[VAPI] Attempting to send message...');
       this.vapi.send({
         type: 'add-message',
         message: {
@@ -373,28 +349,22 @@ export class VapiService {
           content: content
         }
       });
-      console.log('[VAPI] Message sent successfully');
     } catch (error) {
-      console.error('[VAPI] Error sending message:', error);
+      console.error('Error sending message:', error);
     }
   }
 
   public toggleMute(): void {
-    console.log('Toggling mute state. Current state:', this.isMuted);
     try {
       if (this.currentSession) {
         this.isMuted = !this.isMuted;
         if (typeof this.currentSession.setMuted === 'function') {
-          console.log('Setting mute state to:', this.isMuted);
           this.currentSession.setMuted(this.isMuted);
         } else if (this.vapi && typeof this.vapi.setMuted === 'function') {
-          console.log('Using vapi.setMuted to set mute state to:', this.isMuted);
           this.vapi.setMuted(this.isMuted);
         } else {
-          console.warn('No mute function available on session or vapi instance');
         }
       } else {
-        console.warn('No active session to toggle mute');
       }
     } catch (error) {
       console.error('Error toggling mute:', error);
@@ -404,18 +374,21 @@ export class VapiService {
   }
 
   public togglePause(): void {
-    console.log('Toggling pause state. Current state:', this.isPaused);
     try {
       if (this.currentSession) {
         this.isPaused = !this.isPaused;
         if (this.vapi) {
-          console.log('Setting pause state to:', this.isPaused);
           (this.vapi as any).setPaused(this.isPaused);
+          
+          // If pausing, stop keep-alive; if resuming, restart it
+          if (this.isPaused) {
+            this.stopKeepAlive();
+          } else {
+            this.startKeepAlive();
+          }
         } else {
-          console.warn('No vapi instance available');
         }
       } else {
-        console.warn('No active session to toggle pause');
       }
     } catch (error) {
       console.error('Error toggling pause:', error);
@@ -433,9 +406,39 @@ export class VapiService {
   }
 
   async cleanup() {
-    if (this.currentSession) {
-      await this.endSession();
+    if (this.vapi) {
+      console.log('VapiService cleanup initiated.');
+      try {
+        await this.vapi.stop();
+        this.vapi.removeAllListeners();
+        this.vapi = null;
+        this.isInitialized = false;
+        this.currentSession = null;
+        this.stopKeepAlive();
+        this.isMuted = false;
+        this.isPaused = false;
+
+        // Explicitly call onCallEnd callback during cleanup
+        if (this.callbacks.onCallEnd) {
+          this.callbacks.onCallEnd();
+        }
+
+        console.log('VapiService cleanup complete.');
+      } catch (error) {
+        console.error('Error during VapiService cleanup:', error);
+        if (this.callbacks.onError) this.callbacks.onError(error);
+      }
+    } else {
+      console.log('No Vapi instance to cleanup.');
     }
+  }
+
+  public getVapiInstance() {
+    return this.vapi;
+  }
+
+  public getCurrentSession() {
+    return this.currentSession;
   }
 }
 

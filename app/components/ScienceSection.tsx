@@ -40,7 +40,7 @@ export const ScienceSection = () => {
             Science-backed memory improvement
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            EchoStudy is built on proven learning science principles
+            Notewise is built on proven learning science principles
           </p>
         </motion.div>
 

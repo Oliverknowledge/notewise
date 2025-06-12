@@ -41,6 +41,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+
+    // Update last_login_date to trigger streak update
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ last_login_date: new Date().toISOString() })
+        .eq('id', user.id);
+    }
   };
 
   const signUp = async (email: string, password: string) => {

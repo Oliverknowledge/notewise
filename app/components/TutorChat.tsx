@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Message {
@@ -15,21 +15,42 @@ interface TutorChatProps {
   onToggleMute: () => void;
   onEndSession: () => Promise<void>;
   isMuted: boolean;
+  onSendMessage: (messageContent: string) => void;
+  onMessageReceived: (message: Message) => void;
 }
 
-export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeaking }: TutorChatProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeaking, onSendMessage, messages, onMessageReceived }: TutorChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
+  
+  // Ref for the messages container to enable auto-scrolling
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Function to scroll to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Auto-scroll when messages change or when speaking status changes
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isSpeaking]);
+
+  // Also scroll when chat is opened
+  useEffect(() => {
+    if (isOpen) {
+      // Small delay to ensure the chat is fully rendered
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data && event.data.action === 'app-message') {
-        console.log('Received app-message:', event.data);
         if (!isOpen) {
-          console.log('Setting showNotification to true');
           setShowNotification(true);
         }
 
@@ -40,38 +61,29 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
             if (event.data.data.trim().startsWith('{') || event.data.data.trim().startsWith('[')) {
               parsedData = JSON.parse(event.data.data);
             } else {
-              // Handle non-JSON string messages
-              console.log('Received non-JSON message:', event.data.data);
               return;
             }
           } catch (error) {
-            console.log('Message is not JSON:', event.data.data);
             return;
           }
         }
 
         if (parsedData && typeof parsedData === 'object' && parsedData.type === 'transcript') {
           if (parsedData.transcriptType === "final") {
-            console.log('app-message final transcript:', parsedData);
-            setMessages(prev => [...prev, {
+            onMessageReceived({
               content: parsedData.transcript,
               sender: parsedData.role === 'user' ? 'user' : 'ai',
               timestamp: new Date()
-            }]);
+            });
           } else if (parsedData.transcriptType === "interim") {
-            console.log('app-message interim transcript:', parsedData);
           }
         } else if (parsedData && typeof parsedData === 'object') {
           if (parsedData.type === 'speech-start') {
-            console.log('Parsed speech-start message:', parsedData);
           } else if (parsedData.type === 'speech-end') {
-            console.log('Parsed speech-end message:', parsedData);
           }
         }
       } else if (event.data && event.data.type === 'speech-start') {
-        console.log('speech-start message received (direct type):', event.data);
       } else if (event.data && event.data.type === 'speech-end') {
-        console.log('speech-end message received (direct type):', event.data);
       }
     };
 
@@ -85,14 +97,8 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
 
   const handleSendMessage = () => {
     if (inputValue.trim()) {
-      const newUserMessage: Message = {
-        content: inputValue,
-        sender: 'user',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, newUserMessage]);
+      onSendMessage(inputValue.trim());
       setInputValue('');
-      console.log('User sent message:', inputValue);
     }
   };
 
@@ -110,7 +116,6 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
   const handleStopConversation = async () => {
     console.log('Stop conversation clicked');
     await onEndSession();
-    setMessages([]);
     setShowNotification(false);
   };
 
@@ -209,7 +214,10 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+              <div 
+                ref={messagesContainerRef}
+                className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
+              >
                 {messages.map((message, index) => (
                   <motion.div
                     key={index}
@@ -249,6 +257,8 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
                     </div>
                   </motion.div>
                 )}
+                {/* Invisible div to scroll to */}
+                <div ref={messagesEndRef} />
               </div>
 
               <div className="p-4 border-t bg-white">
@@ -278,4 +288,4 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
       </AnimatePresence>
     </>
   );
-} 
+}

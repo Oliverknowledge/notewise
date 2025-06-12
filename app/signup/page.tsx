@@ -24,20 +24,14 @@ export default function SignupPage() {
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { email_confirmed: true } }
+        options: { data: { full_name: fullName } }
       });
       if (signUpError) throw signUpError;
       if (!authData.user) throw new Error('No user data returned');
       
-      const { error: profileError } = await supabase.from('profiles').upsert({
-        id: authData.user.id,
-        email: authData.user.email,
-        full_name: fullName,
-        created_at: new Date().toISOString()
-      });
-
-      if (profileError) throw profileError;
-
+      // Profile creation is now handled by a Supabase trigger (handle_new_user).
+      // The frontend should not attempt to insert directly into 'profiles'.
+      
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
       router.push("/dashboard");

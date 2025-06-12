@@ -117,13 +117,13 @@ export default function NoteUploadForm() {
             <Input
               id="file"
               type="file"
-              accept=".pdf,.doc,.docx,.txt"
+              accept=".pdf,.doc,.docx,.txt,.pptx,.ppt"
               onChange={handleFileChange}
               required
             />
             <p className="text-sm text-gray-500">
-              Supported formats: PDF, DOC, DOCX, TXT
-            </p>
+              Supported formats: PDF, DOC, DOCX, TXT PPT, PPTX
+            </p >
           </div>
 
           <Button type="submit" className="w-full" disabled={isUploading}>

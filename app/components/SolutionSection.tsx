@@ -37,7 +37,7 @@ export const SolutionSection = () => {
           className="text-center mb-16"
         >
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            How EchoStudy Works
+            How Notewise Works
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Three simple steps to transform your study experience
