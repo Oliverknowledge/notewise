@@ -10,7 +10,7 @@ export const supabase = createClient(
 )
 
 // Server-side Supabase instance
-export const createServerSupabaseClient = () =>
+export const createServerSupabaseClient = async () =>
   createServerComponentClient({
     cookies,
   }) 
