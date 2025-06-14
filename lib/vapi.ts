@@ -28,7 +28,6 @@ export class VapiService {
   private isMuted: boolean = false;
   private isPaused: boolean = false;
   private currentSession: any = null;
-  private keepAliveInterval: NodeJS.Timeout | null = null;
   private callbacks: {
     onMessage?: (message: { content: string }) => void;
     onSpeechStart?: () => void;
@@ -60,7 +59,6 @@ export class VapiService {
       });
 
       this.vapi.on('call-end', () => {
-        this.stopKeepAlive();
         if (this.callbacks.onCallEnd) this.callbacks.onCallEnd();
            });
 
@@ -68,31 +66,6 @@ export class VapiService {
     } catch (error) {
       console.error('Failed to initialize VapiService:', error);
       this.isInitialized = false;
-    }
-  }
-
-  private startKeepAlive() {
-    // Clear any existing keepAlive interval
-    this.stopKeepAlive();
-    
-    // Send a minimal message every 30 seconds to keep the connection alive
-    this.keepAliveInterval = setInterval(() => {
-      if (this.vapi && !this.isPaused) {
-        this.vapi.send({
-          type: 'add-message',
-          message: {
-            role: 'system',
-            content: ' '  // Empty space to prevent speech
-          }
-        });
-      }
-    }, 30000); // 30 seconds
-  }
-
-  private stopKeepAlive() {
-    if (this.keepAliveInterval) {
-      clearInterval(this.keepAliveInterval);
-      this.keepAliveInterval = null;
     }
   }
 
@@ -162,35 +135,7 @@ export class VapiService {
               model: 'gpt-4',
               messages: [{
                 role: "system",
-                content: `You are an expert tutor specializing in ${title}. Your goal is to help students understand complex topics through clear, engaging explanations.
-
-Key behaviors:
-1. Break down complex concepts into digestible parts
-2. Use analogies and real-world examples to illustrate points
-3. Check for understanding by asking brief comprehension questions
-4. Adapt your explanation pace based on student responses
-5. Provide visual descriptions when explaining spatial or complex concepts
-6. Connect new information to previously learned concepts
-
-Current topic: ${notes}
-
-When listing, say first, second and third, not hash hash hash 1.
-
-Guidelines:
-- Keep explanations easy to understand and quite short.
-- Use simple language while maintaining accuracy
-- Encourage questions and interaction
-- Provide practical applications of the concepts
-- Summarize key points periodically
-- Use the Socratic method to guide understanding
-- Acknowledge and build upon student responses
-
-Remember to:
-- Start with an overview of the topic
-- Explain one concept at a time
-- Use examples to reinforce understanding
-- Check comprehension regularly
-- End with a summary of key points`
+                content: `You are an expert tutor specializing in ${title}. Your goal is to help students understand complex topics through clear, engaging explanations.\n\nKey behaviors:\n1. Break down complex concepts into digestible parts\n2. Use analogies and real-world examples to illustrate points\n3. Check for understanding by asking brief comprehension questions\n4. Adapt your explanation pace based on student responses\n5. Provide visual descriptions when explaining spatial or complex concepts\n6. Connect new information to previously learned concepts\n\nCurrent topic: ${notes}\n\nDo not use markdown heading syntax (e.g., #, ##, ###) for headings. Instead, use clear, descriptive sentences or bold text.\n\nGuidelines:\n- Keep explanations easy to understand and quite short.\n- Use simple language while maintaining accuracy\n- Encourage questions and interaction\n- Provide practical applications of the concepts\n- Summarize key points periodically\n- Use the Socratic method to guide understanding\n- Acknowledge and build upon student responses\n\nRemember to:\n- Start with an overview of the topic\n- Explain one concept at a time\n- Use examples to reinforce understanding\n- Check comprehension regularly\n- End with a summary of key points`
               }]
             },
             voice: {
@@ -208,42 +153,7 @@ Remember to:
               model: 'gpt-4',
               messages: [{
                 role: "system",
-                content: `You are an expert tutor specializing in ${title}, focusing on interactive learning through progressive questioning.
-Key behaviors:
-1. Start with basic comprehension questions
-2. Gradually increase difficulty based on student responses
-3. Provide constructive feedback on answers
-4. Use hints when students struggle
-5. Connect questions to real-world applications
-6. Encourage critical thinking and problem-solving
-7. Maintain a supportive and encouraging tone
-
-When listing, say first, second and third, not ###1. 
-
-Current topic: ${notes}
-
-Question progression strategy:
-1. Begin with foundational knowledge questions
-2. Move to application questions
-3. Progress to analysis and evaluation
-4. Challenge with synthesis and creation questions
-5. Include problem-solving scenarios
-
-Guidelines:
-- Ask one question at a time
-- Provide immediate feedback
-- Use hints before giving answers
-- Connect questions to previous answers
-- Vary question types (multiple choice, open-ended, scenario-based)
-- Include practical examples
-- Encourage explanation of reasoning
-
-Remember to:
-- Start with easier questions to build confidence
-- Increase difficulty gradually
-- Provide positive reinforcement
-- Use mistakes as learning opportunities
-- End with a review of key concepts`
+                content: `You are an expert tutor specializing in ${title}, focusing on interactive learning through progressive questioning.\nKey behaviors:\n1. Start with basic comprehension questions\n2. Gradually increase difficulty based on student responses\n3. Provide constructive feedback on answers\n4. Use hints when students struggle\n5. Connect questions to real-world applications\n6. Encourage critical thinking and problem-solving\n7. Maintain a supportive and encouraging tone\n\nDo not use markdown heading syntax (e.g., #, ##, ###) for headings. Instead, use clear, descriptive sentences or bold text.\n\nCurrent topic: ${notes}\n\nQuestion progression strategy:\n1. Begin with foundational knowledge questions\n2. Move to application questions\n3. Progress to analysis and evaluation\n4. Challenge with synthesis and creation\n5. Include problem-solving scenarios\n\nGuidelines:\n- Ask one question at a time\n- Provide immediate feedback\n- Use hints before giving answers\n- Connect questions to previous answers\n- Vary question types (multiple choice, open-ended, scenario-based)\n- Include practical examples\n- Encourage explanation of reasoning\n\nRemember to:\n- Start with easier questions to build confidence\n- Increase difficulty gradually\n- Provide positive reinforcement\n- Use mistakes as learning opportunities\n- End with a review of key concepts`
               }]
             },
             voice: {
@@ -298,7 +208,6 @@ Guidelines:
             firstMessage: `Hi! I'm a complete beginner trying to learn about ${title}. Could you explain this topic to me in simple terms? I know nothing about it, so please start from the very basics.`
           });
         }
-        this.startKeepAlive(); // Start keep-alive when session starts
       } catch (audioError) {
         console.warn('Audio initialization failed, falling back to text-only mode:', audioError);
         if (this.callbacks.onError) this.callbacks.onError(audioError);
@@ -321,7 +230,6 @@ Guidelines:
         this.vapi.removeAllListeners();
 
         this.currentSession = null;
-        this.stopKeepAlive();
         this.isMuted = false;
         this.isPaused = false;
         this.vapi = null; // Explicitly nullify the Vapi instance
@@ -379,13 +287,6 @@ Guidelines:
         this.isPaused = !this.isPaused;
         if (this.vapi) {
           (this.vapi as any).setPaused(this.isPaused);
-          
-          // If pausing, stop keep-alive; if resuming, restart it
-          if (this.isPaused) {
-            this.stopKeepAlive();
-          } else {
-            this.startKeepAlive();
-          }
         } else {
         }
       } else {
@@ -414,7 +315,6 @@ Guidelines:
         this.vapi = null;
         this.isInitialized = false;
         this.currentSession = null;
-        this.stopKeepAlive();
         this.isMuted = false;
         this.isPaused = false;
 
