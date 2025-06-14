@@ -96,7 +96,7 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
   };
 
   const handleSendMessage = () => {
-    console.log(inputValue)
+    
     if (inputValue.trim()) {
       onSendMessage(inputValue.trim());
       setInputValue('');
@@ -118,10 +118,6 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
     console.log('Stop conversation clicked');
     await onEndSession();
     setShowNotification(false);
-  };
-
-  const toggleFullScreen = () => {
-    setIsFullScreen(!isFullScreen);
   };
 
   return (
@@ -147,8 +143,8 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/50 z-40"
-                onClick={toggleFullScreen}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+                onClick={() => setIsFullScreen(false)}
               />
             )}
 
@@ -156,14 +152,18 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              transition={{ duration: 0.3 }}
-              className={`relative bg-white rounded-lg shadow-lg overflow-hidden flex flex-col ${isFullScreen ? 'fixed inset-4 z-50' : 'w-full h-[500px]'}`}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className={`fixed bg-white shadow-xl flex flex-col z-50 overflow-hidden rounded-lg ${
+                isFullScreen 
+                  ? 'top-[5%] left-[5%] right-[5%] bottom-[5%] w-[90%] h-[90%]' 
+                  : 'bottom-20 right-4 w-96 h-[500px]'
+              }`}
             >
               <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-gray-900">Tutor Chat</h3>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={toggleFullScreen}
+                    onClick={() => setIsFullScreen(!isFullScreen)}
                     className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                     aria-label={isFullScreen ? 'Minimize chat' : 'Maximize chat'}
                   >
@@ -224,7 +224,7 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
                     key={index}
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ duration: 0.3 }}
+                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
                     className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div

@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Volume2, VolumeX, Send, Trophy, Star, Target, Brain } from 'lucide-react';
+import { Volume2, VolumeX, Send, Trophy, Star, Target, Brain, MessageSquare, X } from 'lucide-react';
 import TutoringSessionPopup from '@/components/TutoringSessionPopup';
 import { supabase } from '@/lib/supabase';
+import { CardHeader } from "@/components/ui/card";
 
 interface Message {
   id: string;
@@ -34,6 +35,7 @@ export default function SessionClient() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [currentXP, setCurrentXP] = useState(0);
   const [currentLevel, setCurrentLevel] = useState(1);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Check audio availability
@@ -67,6 +69,9 @@ export default function SessionClient() {
           timestamp: new Date()
         };
         setMessages(prev => [...prev, newMessage]);
+        if (!isChatOpen) {
+          setIsChatOpen(true);
+        }
 
         // Add XP for AI responses
         if (event.data.sender === 'ai') {
@@ -117,7 +122,7 @@ export default function SessionClient() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [currentLevel]);
+  }, [currentLevel, isChatOpen]);
 
   const handleSendMessage = async () => {
     const trimmedInput = userInput.trim();
@@ -200,11 +205,19 @@ export default function SessionClient() {
         </div>
       </div>
 
-      {/* Main Chat Area */}
+      {/* Main Content Area (excluding the pop-up chat) */}
       <div className="flex-1 flex flex-col">
         <div className="bg-white shadow-sm p-4 flex items-center justify-between">
           <h1 className="text-xl font-bold text-blue-800">Tutoring Session</h1>
           <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsChatOpen(true)}
+              className="hover:bg-gray-100"
+            >
+              <MessageSquare className="h-5 w-5" />
+            </Button>
             {audioAvailable && (
               <Button
                 variant="ghost"
@@ -217,66 +230,72 @@ export default function SessionClient() {
             )}
           </div>
         </div>
-
-        <ScrollArea className="flex-1 p-4">
-          <div className="space-y-4 max-w-3xl mx-auto">
-            {messages.map((message) => (
-              <m.div
-                key={message.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
-                    message.sender === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white shadow-sm border border-gray-100'
-                  }`}
-                >
-                  {message.content}
-                </div>
-              </m.div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
-
-        <div className="bg-white border-t p-4">
-          <div className="max-w-3xl mx-auto flex space-x-2">
-            <Input
-              value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Type your message..."
-              className="flex-1"
-            />
-            <Button onClick={handleSendMessage}>
-              <Send className="h-4 w-4 mr-2" />
-              Send
-            </Button>
-          </div>
-        </div>
       </div>
 
-      {/* Achievement Popups */}
+      {/* Chat Pop-up Overlay */}
       <AnimatePresence>
-        {achievements.map(achievement => (
+        {isChatOpen && (
           <m.div
-            key={achievement.id}
-            initial={{ opacity: 0, scale: 0.5, y: 50 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.5, y: 50 }}
-            className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 border border-gray-100"
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
           >
-            <div className="flex items-center space-x-2">
-              {achievement.type === 'xp' && <Star className="h-5 w-5 text-yellow-500" />}
-              {achievement.type === 'badge' && <Trophy className="h-5 w-5 text-green-500" />}
-              {achievement.type === 'streak' && <Target className="h-5 w-5 text-blue-500" />}
-              <p className="text-sm font-medium">{achievement.message}</p>
-            </div>
+            <Card className="w-[90vw] h-[90vh] max-w-4xl flex flex-col relative">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 bg-gray-50 border-b">
+                <h2 className="text-lg font-bold text-blue-800">Tutor Chat</h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsChatOpen(false)}
+                  className="hover:bg-red-100"
+                >
+                  <X className="h-5 w-5 text-red-500" />
+                </Button>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col p-4 overflow-hidden">
+                <ScrollArea className="flex-1 pr-4">
+                  <div className="space-y-4 max-w-3xl mx-auto">
+                    {messages.map((message) => (
+                      <m.div
+                        key={message.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-[80%] rounded-lg p-3 ${
+                            message.sender === 'user'
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-white shadow-sm border border-gray-100'
+                          }`}
+                        >
+                          {message.content}
+                        </div>
+                      </m.div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                </ScrollArea>
+                <div className="bg-white border-t p-4 -mx-4 -mb-4 mt-4">
+                  <div className="max-w-3xl mx-auto flex space-x-2">
+                    <Input
+                      value={userInput}
+                      onChange={(e) => setUserInput(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Type your message..."
+                      className="flex-1"
+                    />
+                    <Button onClick={handleSendMessage} disabled={!userInput.trim()}>
+                      <Send className="h-5 w-5" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </m.div>
-        ))}
+        )}
       </AnimatePresence>
     </div>
   );
