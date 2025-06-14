@@ -32,13 +32,16 @@ import {
   Bookmark,
   User,
   Download,
-  Play
+  Play,
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ViewStudyMaterialModal from '@/app/components/ViewStudyMaterialModal';
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HistoryIcon } from "@/components/icons/HistoryIcon";
+import { useAuth } from "@/contexts/AuthContext";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 
 
@@ -61,90 +64,34 @@ interface WelcomeBannerProps {
 }
 
 function StreakAnimation({ streak }: { streak: number }) {
-  const today = new Date().getDay(); 
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
   return (
     <motion.div
-      className="w-[30w] md:w-1/2 flex flex-col items-center gap-4 bg-gradient-to-r from-orange-400 to-red-500 p-8 rounded-3xl shadow-lg overflow-hidden relative md:ml-auto md:mr-0 md:mt-0"
-      whileHover={{ scale: 1.05 }}
-      transition={{ type: "spring", stiffness: 300 }}
+      className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 shadow-xl text-white flex flex-col items-center justify-center min-w-[150px] md:min-w-[200px] transition-all duration-300"
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: 0.8, duration: 0.5 }}
     >
-      {/* Background fire effect */}
       <motion.div
-        className="absolute inset-0 z-0 opacity-20"
-        animate={{ 
-          scale: [1, 1.2, 1], 
-          rotate: [0, 5, -5, 0], 
-          opacity: [0.1, 0.3, 0.1] 
-        }}
-        transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+        key={streak}
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        className="text-6xl font-extrabold drop-shadow-lg text-yellow-300"
       >
-        <Trophy className="w-full h-full text-white blur-sm" />
+        {streak === 0 ? 1 : streak}
       </motion.div>
-
-      <div className="relative z-10 flex items-center gap-3">
-        <motion.div
-          animate={{
-            rotate: [0, 10, -10, 0],
-            scale: [1, 1.2, 1]
-          }}
-          transition={{
-            repeat: Infinity,
-            duration: 2,
-            ease: "easeInOut"
-          }}
-          className="text-5xl"
-        >
-          🔥
-        </motion.div>
-        <div className="text-white flex flex-col items-center">
-          <motion.span
-            className="text-4xl font-extrabold"
-            key={streak}
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 500 }}
-          >
-            {streak}
-          </motion.span>
-          <span className="text-base ml-1">day streak</span>
-        </div>
-      </div>
-
-      <div className="relative z-10 grid grid-cols-7 gap-2 w-full mt-4">
-        {days.map((day, i) => (
-          <motion.div
-            key={day}
-            className={`flex flex-col items-center justify-center px-2 py-3 rounded-lg text-sm font-semibold
-              ${i < streak ? 'bg-white/30' : 'bg-white/10'}
-              ${i === today ? 'border-2 border-yellow-300' : ''}
-            `}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 * i + 0.5 }}
-          >
-            {day}
-            {i < streak && (
-              <motion.span
-                className="text-orange-300 text-lg mt-2"
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 * i + 0.7, type: "spring", stiffness: 400 }}
-              >
-                🔥
-              </motion.span>
-            )}
-          </motion.div>
-        ))}
-      </div>
+      <p className="text-lg font-semibold text-blue-100 mt-2">Day Streak</p>
     </motion.div>
   );
 }
 
 function WelcomeBanner({ userName, xp, level, streak }: WelcomeBannerProps) {
   const getNextLevelXP = (currentLevel: number) => (currentLevel + 1) ** 2 * 100;
-  const progress = level && xp ? ((xp / getNextLevelXP(level)) * 100) : 0;
+  const getCurrentLevelXP = (currentLevel: number) => {
+    if (currentLevel <= 1) return 0; // Level 1 starts at 0 XP
+    return (currentLevel - 1) ** 2 * 100;
+  };
+  const progress = level && xp ? ((xp - getCurrentLevelXP(level)) / (getNextLevelXP(level) - getCurrentLevelXP(level)) * 100) : 0;
 
   return (
     <motion.div 
@@ -217,88 +164,6 @@ function WelcomeBanner({ userName, xp, level, streak }: WelcomeBannerProps) {
   );
 }
 
-
-
-
-interface StudyInsightsProps {
-  weeklyStudyTime: number | undefined;
-  topicsReviewed: number | undefined;
-  mostReviewedTopics: string[] | undefined;
-  suggestedReviewTopics: { topic: string; sessions?: number }[] | undefined;
-}
-
-function StudyInsights({ weeklyStudyTime, topicsReviewed, mostReviewedTopics, suggestedReviewTopics }: StudyInsightsProps) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.8 }}
-    >
-      <Card className="shadow-xl border-0 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl text-white relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-white rounded-full -translate-y-12 translate-x-12"></div>
-          <div className="absolute bottom-0 left-0 w-20 h-20 bg-white rounded-full translate-y-10 -translate-x-10"></div>
-        </div>
-
-        <CardHeader className="border-b border-white/20 px-6 py-4 relative z-10">
-          <CardTitle className="text-2xl font-bold flex items-center gap-3">
-            <Target className="w-6 h-6 text-white" />
-            Study Insights
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 relative z-10">
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white/10 p-4 rounded-xl flex flex-col items-center justify-center">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-5 h-5 text-green-300" />
-                  <span className="text-sm font-medium text-white/80">Weekly Study Time</span>
-                </div>
-                <p className="text-3xl font-bold text-white">{weeklyStudyTime || 0} hrs</p>
-              </div>
-              <div className="bg-white/10 p-4 rounded-xl flex flex-col items-center justify-center">
-                <div className="flex items-center gap-2 mb-2">
-                  <Bookmark className="w-5 h-5 text-green-300" />
-                  <span className="text-sm font-medium text-white/80">Topics Reviewed</span>
-                </div>
-                <p className="text-3xl font-bold text-white">{topicsReviewed || 0}</p>
-              </div>
-            </div>
-
-            {mostReviewedTopics && mostReviewedTopics.length > 0 && (
-              <div>
-                <h4 className="font-medium text-white mb-3 text-lg">Most Reviewed Topics</h4>
-                <div className="space-y-2">
-                  {mostReviewedTopics.map((topic, index) => (
-                    <div key={index} className="flex items-center justify-between bg-white/10 p-3 rounded-xl">
-                      <span className="text-sm text-white/80">{topic}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {suggestedReviewTopics && suggestedReviewTopics.length > 0 && (
-              <div>
-                <h4 className="font-medium text-white mb-3 text-lg">Suggested for Review</h4>
-                <div className="space-y-2">
-                  {suggestedReviewTopics.map((topicItem, index) => (
-                    <div key={index} className="flex items-center justify-between bg-white/10 p-3 rounded-xl">
-                      <span className="text-sm text-white/80">{topicItem?.topic}</span>
-                      <Button variant="ghost" size="sm" className="text-green-300 hover:text-white hover:bg-white/20">Review</Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-}
-
 function DailyTip() {
   const tips = [
     "Break down complex topics into smaller, manageable chunks.",
@@ -362,6 +227,7 @@ interface UserProfileData {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { signOut } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [studyMaterials, setStudyMaterials] = useState<StudyMaterial[]>([]);
@@ -369,6 +235,7 @@ export default function DashboardPage() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isViewMaterialModalOpen, setIsViewMaterialModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -423,7 +290,7 @@ export default function DashboardPage() {
       }
 
       // Fetch user profile with all statistics
-      const { data: profileData, error: profileError } = await supabase
+      let { data: currentProfileData, error: profileError } = await supabase
         .from('profiles')
         .select(`
           id,
@@ -448,13 +315,16 @@ export default function DashboardPage() {
         throw profileError;
       }
 
-      if (!profileData) {
+      if (!currentProfileData) {
         throw new Error('Profile not found');
       }
 
+      // Variable to hold the final profile data for setting state
+      let finalProfileData = currentProfileData;
+
       // Update last login date to trigger streak update if needed
       const today = new Date().toISOString().split('T')[0];
-      if (profileData.last_login_date !== today) {
+      if (finalProfileData.last_login_date !== today) {
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ last_login_date: today })
@@ -463,22 +333,52 @@ export default function DashboardPage() {
         if (updateError) {
           console.error('Error updating last login date:', updateError);
         }
+        
+        // Re-fetch profile data to get the updated streak and last_login_date
+        const { data: updatedProfileData, error: updatedProfileError } = await supabase
+          .from('profiles')
+          .select(`
+            id,
+            email,
+            full_name,
+            xp,
+            level,
+            streak,
+            weekly_study_time,
+            topics_reviewed,
+            most_reviewed_topics,
+            suggested_review_topics,
+            badges,
+            last_login_date,
+            updated_at
+          `)
+          .eq('id', session.user.id)
+          .single();
+
+        if (updatedProfileError) {
+          console.error('Error re-fetching profile after streak update:', updatedProfileError);
+          // Don't throw, just log and proceed with the current data if re-fetch fails
+        }
+
+        if (updatedProfileData) {
+          finalProfileData = updatedProfileData; // Use the updated data for state
+        }
       }
 
-      // Transform the data to match our interface
+      // Transform the data to match our interface (using finalProfileData)
       const userProfileData: UserProfileData = {
-        id: profileData.id,
-        email: profileData.email || '',
-        full_name: profileData.full_name || '',
-        xp: profileData.xp || 0,
-        level: profileData.level || 1,
-        streak: profileData.streak || 0,
-        weekly_study_time: profileData.weekly_study_time || 0,
-        topics_reviewed: profileData.topics_reviewed || 0,
-        most_reviewed_topics: profileData.most_reviewed_topics || [],
-        suggested_review_topics: profileData.suggested_review_topics || [],
-        badges: profileData.badges || [],
-        updated_at: profileData.updated_at
+        id: finalProfileData.id,
+        email: finalProfileData.email || '',
+        full_name: finalProfileData.full_name || '',
+        xp: finalProfileData.xp || 0,
+        level: finalProfileData.level || 1,
+        streak: finalProfileData.streak || 0,
+        weekly_study_time: finalProfileData.weekly_study_time || 0,
+        topics_reviewed: finalProfileData.topics_reviewed || 0,
+        most_reviewed_topics: finalProfileData.most_reviewed_topics || [],
+        suggested_review_topics: finalProfileData.suggested_review_topics || [],
+        badges: finalProfileData.badges || [],
+        updated_at: finalProfileData.updated_at
       };
 
       setUserProfile(userProfileData);
@@ -529,6 +429,36 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('No active user session found.');
+        return;
+      }
+
+      const response = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        toast.success(result.message || 'Account deleted successfully.');
+        router.push('/'); // Redirect to home page after deletion
+      } else {
+        toast.error(result.error || 'Failed to delete account.');
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toast.error('An unexpected error occurred during account deletion.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50">
       {/* Modern Header */}
@@ -558,17 +488,61 @@ export default function DashboardPage() {
                   <div className="absolute right-0 top-[101%] w-48 bg-white rounded-lg shadow-lg py-2 z-50 border border-slate-200">
                    
                     <div
-                      onClick={() => supabase.auth.signOut()}
+                      onClick={signOut}
                       className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-100 cursor-pointer"
                     >
                       Sign Out
+                    </div>
+                    <div
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-100 cursor-pointer border-t border-gray-200 mt-2 pt-2"
+                    >
+                      Delete Account
                     </div>
                   </div>
                 )}
               </Button>
             </nav>
+
+            <div className="md:hidden">
+              <Button
+                variant="ghost"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="h-6 w-6 text-slate-600" />
+                ) : (
+                  <Menu className="h-6 w-6 text-slate-600" />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="md:hidden bg-white/90 backdrop-blur-md pb-4 border-b border-white/20 shadow-md"
+          >
+            <nav className="flex flex-col items-start px-4 space-y-2">
+              <Link href="/tutor" className="block w-full px-3 py-2 text-slate-700 hover:bg-slate-100 rounded-md font-medium">
+                Tutor
+              </Link>
+              <Link href="/history" className="block w-full px-3 py-2 text-slate-700 hover:bg-slate-100 rounded-md font-medium">
+                History
+              </Link>
+              <Button
+                onClick={signOut}
+                className="block w-full text-left px-3 py-2 text-red-600 hover:bg-slate-100 rounded-md font-medium"
+              >
+                Logout
+              </Button>
+            </nav>
+          </motion.div>
+        )}
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -593,16 +567,8 @@ export default function DashboardPage() {
             />
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mt-8">
-              {/* Left Column - Study Insights */}
+              {/* Left Column - Quick Actions */}
               <div className="xl:col-span-2 space-y-8">
-                <StudyInsights
-                  weeklyStudyTime={userProfile?.weekly_study_time}
-                  topicsReviewed={userProfile?.topics_reviewed}
-                  mostReviewedTopics={userProfile?.most_reviewed_topics}
-                  suggestedReviewTopics={userProfile?.suggested_review_topics}
-                />
-
-                {/* Quick Actions */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -642,7 +608,7 @@ export default function DashboardPage() {
                           <span className="font-semibold">View History</span>
                         </Button>
                         <Button
-                          onClick={() => supabase.auth.signOut()}
+                          onClick={signOut}
                           className="group h-auto py-6 bg-white/10 hover:bg-white/20 text-white flex flex-col items-center justify-center space-y-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0"
                         >
                           <div className="p-3 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors">
@@ -664,6 +630,26 @@ export default function DashboardPage() {
           </>
         )}
       </main>
+
+      {/* Delete Account Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-red-600"><AlertTriangle className="mr-2 h-5 w-5"/> Confirm Account Deletion</DialogTitle>
+            <DialogDescription>
+              Are you absolutely sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAccount}>
+              Delete My Account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ViewStudyMaterialModal
         isOpen={isViewMaterialModalOpen}

@@ -215,19 +215,7 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
 
   const handleEndSession = async () => {
     try {
-      if (sessionStartTime) {
-        // The XP logic was moved to session start in app/dashboard/page.tsx
-        // No longer need to calculate and add XP here based on duration.
-        // const sessionEndTime = new Date();
-        // const durationMinutes = Math.round((sessionEndTime.getTime() - sessionStartTime.getTime()) / (1000 * 60));
-        
-        // const { data: { user } } = await supabase.auth.getUser();
-        // if (user) {
-        //   const result = await addStudySessionXP(user.id, durationMinutes);
-        //   
-        //   toast.success(`Session completed! You gained ${result.xpGained} XP${result.streakBonus > 1 ? ` (${Math.round((result.streakBonus - 1) * 100)}% streak bonus!)` : ''}`);
-        // }
-      }
+      
       
       onEndSession();
     } catch (error) {

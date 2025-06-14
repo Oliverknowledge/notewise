@@ -245,6 +245,7 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
   };
 
   const handleEndSession = async () => {
+    console.log('handleEndSession called');
     try {
       if (sessionStartTime) {
         const sessionEndTime = new Date();
@@ -257,7 +258,10 @@ const TutoringSessionPopup = forwardRef(function TutoringSessionPopup({
           const result = await addStudySessionXP(user.id, durationMinutes);
           
           // Show XP gained notification
-          toast.success(`Session completed! You gained ${result.xpGained} XP${result.streakBonus > 1 ? ` (${Math.round((result.streakBonus - 1) * 100)}% streak bonus!)` : ''}`);
+          toast.success(`Session completed! You gained ${result.xpGained} XP${result.streakBonus > 1 ? ` (${Math.round((result.streakBonus - 1) * 100)}% streak bonus!)` : ''}`, {
+            description: 'Session saved.',
+            position: 'top-left'
+          });
         }
       }
       

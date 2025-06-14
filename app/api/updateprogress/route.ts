@@ -21,60 +21,49 @@ export async function POST(request: Request) {
     // Get the current date in YYYY-MM-DD format
     const today = new Date().toISOString().split('T')[0];
 
-    // First, get the user's current streak and last login date
-    const { data: userData, error: fetchError } = await supabase
-        .from('profiles')
-        .select('streak, last_login_date, xp')
-        .eq('id', userId)
-        .single();
-
-    if (fetchError) {
-        console.error('Error fetching user data:', fetchError);
-        return NextResponse.json({ error: 'Failed to fetch user data' }, { status: 500 });
-    }
-
-    let newStreak = 1;
-    const lastLoginDate = userData?.last_login_date ? new Date(userData.last_login_date) : null;
-    const currentDate = new Date(today);
-
-    if (lastLoginDate) {
-        // Check if the last login was yesterday
-        const yesterday = new Date(currentDate);
-        yesterday.setDate(yesterday.getDate() - 1);
-        
-        if (lastLoginDate.toDateString() === yesterday.toDateString()) {
-            // If last login was yesterday, increment streak
-            newStreak = (userData.streak || 0) + 1;
-        } else if (lastLoginDate.toDateString() !== currentDate.toDateString()) {
-            // If last login was not today or yesterday, reset streak
-            newStreak = 1;
-        } else {
-            // If already logged in today, keep current streak
-            newStreak = userData.streak || 1;
-        }
-    }
-
-    // Update the user's streak and last login date
+    // Update the user's last login date. The database trigger will handle the streak update.
     const { error: updateError } = await supabase
         .from('profiles')
         .update({
-            streak: newStreak,
             last_login_date: today,
-            updated_at: new Date().toISOString(),
-            xp: (userData.xp || 0) + 10  // Increment XP by 10
+            updated_at: new Date().toISOString()
         })
         .eq('id', userId);
 
     if (updateError) {
-        console.error('Supabase streak update error:', updateError);
-        return NextResponse.json({ error: 'Failed to update streak' }, { status: 500 });
+        console.error('Supabase update error:', updateError);
+        return NextResponse.json({ error: 'Failed to update last login date' }, { status: 500 });
+    }
+
+    // Add XP using the database function (this also updates the level)
+    const { error: xpError } = await supabase.rpc('add_xp', {
+        user_id: userId,
+        xp_amount: 50
+    });
+
+    if (xpError) {
+        console.error('Error adding XP:', xpError);
+        return NextResponse.json({ error: 'Failed to add XP' }, { status: 500 });
+    }
+
+    // Get updated user data including the streak (updated by the database trigger)
+    const { data: updatedUserData, error: userDataError } = await supabase
+        .from('profiles')
+        .select('xp, level, streak')
+        .eq('id', userId)
+        .single();
+
+    if (userDataError || !updatedUserData) {
+        console.error('Error fetching updated user data:', userDataError);
+        return NextResponse.json({ error: 'Failed to fetch updated user data' }, { status: 500 });
     }
 
     return NextResponse.json({ 
         success: true, 
-        streak: newStreak,
-        xp: (userData.xp || 0) + 10,
-        message: `Streak updated to ${newStreak} days and XP increased by 10`
+        streak: updatedUserData.streak,
+        xp: updatedUserData.xp,
+        level: updatedUserData.level,
+        message: `Progress updated. Streak: ${updatedUserData.streak} days, XP: ${updatedUserData.xp}`
     });
 
   } catch (error) {

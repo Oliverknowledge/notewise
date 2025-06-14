@@ -370,34 +370,11 @@ export default function TutorPage() {
               Notewise
             </Link>
             <div className="flex items-center space-x-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleToggleMute}
-                className={`hover:bg-gray-100 rounded-full ${isMutedState ? 'text-red-600' : 'text-blue-600'}`}
-              >
-                {isMutedState ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleTogglePause}
-                className={`hover:bg-gray-100 rounded-full ${isPausedState ? 'text-red-600' : 'text-blue-600'}`}
-              >
-                {isPausedState ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6 6h4v12H6zm8 0h4v12h-4z" />
-                  </svg>
-                )}
-              </Button>
+              
               <Button
                 variant="destructive"
                 onClick={endTutoringSession}
-                className="hover:bg-red-100 rounded-full px-6"
+                className="hover:bg-red-600 rounded-full px-6"
               >
                 End Session
               </Button>
@@ -500,7 +477,7 @@ export default function TutorPage() {
                     )}
                   </div>
                   <p className="text-sm text-gray-500">
-                    Supported formats: PDF, DOC, DOCX, TXT (max 50MB)
+                    Supported formats: PDF, DOC, DOCX, TXT, PPT, PPTX (max 50MB)
                   </p>
                 </div>
 

@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase-client";
 import { motion } from 'framer-motion';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function SignupPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,16 +78,26 @@ export default function SignupPage() {
             disabled={loading} 
             required
           />
-          <input 
-            id="password" 
-            name="password" 
-            type="password" 
-            placeholder="Password" 
-            minLength={6} 
-            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg" 
-            disabled={loading} 
-            required
-          />
+          <div className="relative">
+            <input 
+              id="password" 
+              name="password" 
+              type={showPassword ? "text" : "password"}
+              placeholder="Password" 
+              minLength={6} 
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg pr-10"
+              disabled={loading} 
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff className="h-6 w-6" /> : <Eye className="h-6 w-6" />}
+            </button>
+          </div>
           <p className="text-sm text-gray-500 mt-1">Password must be at least 6 characters long</p>
           <button 
             type="submit" 

@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Volume2, VolumeX, Send, Trophy, Star, Target, Brain } from 'lucide-react';
 import TutoringSessionPopup from '@/components/TutoringSessionPopup';
+import { supabase } from '@/lib/supabase';
 
 interface Message {
   id: string;
@@ -57,7 +58,7 @@ export default function SessionClient() {
 
   // Listen for messages and achievements
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       if (event.data.type === 'message') {
         const newMessage: Message = {
           id: Math.random().toString(36).substr(2, 9),
@@ -67,24 +68,45 @@ export default function SessionClient() {
         };
         setMessages(prev => [...prev, newMessage]);
 
-        // Simulate XP gain for AI responses
+        // Add XP for AI responses
         if (event.data.sender === 'ai') {
-          const xpGain = Math.floor(Math.random() * 10) + 5; // 5-15 XP per response
-          setCurrentXP(prev => {
-            const newXP = prev + xpGain;
-            // Check for level up
-            const newLevel = Math.floor(newXP / 100) + 1;
-            if (newLevel > currentLevel) {
-              setAchievements(prev => [...prev, {
-                id: Math.random().toString(36).substr(2, 9),
-                type: 'xp',
-                value: newXP,
-                message: `Level Up! You're now level ${newLevel}!`
-              }]);
-              setCurrentLevel(newLevel);
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const xpGain = Math.floor(Math.random() * 10) + 5; // 5-15 XP per response
+              const { error } = await supabase.rpc('add_xp', {
+                user_id: user.id,
+                xp_amount: xpGain
+              });
+
+              if (error) {
+                console.error('Error adding XP:', error);
+                return;
+              }
+
+              // Get updated user data
+              const { data: updatedUserData } = await supabase
+                .from('profiles')
+                .select('xp, level')
+                .eq('id', user.id)
+                .single();
+
+              if (updatedUserData) {
+                setCurrentXP(updatedUserData.xp);
+                if (updatedUserData.level > currentLevel) {
+                  setAchievements(prev => [...prev, {
+                    id: Math.random().toString(36).substr(2, 9),
+                    type: 'xp',
+                    value: updatedUserData.xp,
+                    message: `Level Up! You're now level ${updatedUserData.level}!`
+                  }]);
+                  setCurrentLevel(updatedUserData.level);
+                }
+              }
             }
-            return newXP;
-          });
+          } catch (error) {
+            console.error('Error handling XP gain:', error);
+          }
         }
       } else if (event.data.type === 'speech-start') {
         setIsSpeaking(true);

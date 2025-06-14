@@ -34,8 +34,19 @@ CREATE TRIGGER update_streak_on_login
 -- Create function to calculate level based on XP
 CREATE OR REPLACE FUNCTION calculate_level(xp INTEGER)
 RETURNS INTEGER AS $$
+DECLARE
+    level INTEGER;
 BEGIN
-    RETURN FLOOR(SQRT(xp / 100)) + 1;
+    -- Level thresholds: 100 XP for level 2, 300 XP for level 3, 600 XP for level 4, etc.
+    -- Formula: level = floor(sqrt(xp/100)) + 1
+    level := FLOOR(SQRT(xp/100)) + 1;
+    
+    -- Ensure minimum level is 1
+    IF level < 1 THEN
+        level := 1;
+    END IF;
+    
+    RETURN level;
 END;
 $$ LANGUAGE plpgsql;
 

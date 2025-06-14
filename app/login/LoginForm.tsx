@@ -3,11 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase-client";
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
 
   const addDebugInfo = (info: string) => {
     setDebugInfo(prev => [...prev, `${new Date().toISOString()}: ${info}`]);
@@ -95,14 +97,24 @@ export default function LoginForm() {
           <label htmlFor="password" className="block mb-1 font-medium">
             Password
           </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            className="w-full border rounded px-3 py-2"
-            disabled={loading}
-          />
+          <div className="relative">
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              required
+              className="w-full border rounded px-3 py-2 pr-10"
+              disabled={loading}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
         <button
           type="submit"
