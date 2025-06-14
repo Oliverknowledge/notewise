@@ -1,5 +1,7 @@
+'use client';
+
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 
 const userProgress = {
   xp: 850,
@@ -26,7 +28,7 @@ export default function ProgressPage() {
         </nav>
       </header>
       <main className="flex-1 flex flex-col items-center justify-center px-4">
-        <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl flex flex-col items-center mt-12">
+        <Motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl flex flex-col items-center mt-12">
           <h1 className="text-3xl font-bold text-blue-800 mb-2">Your Progress</h1>
           <div className="w-full mb-6">
             <div className="flex justify-between mb-1">
@@ -60,17 +62,17 @@ export default function ProgressPage() {
             <div className="w-full h-32 bg-gradient-to-r from-blue-100 to-green-100 rounded-lg flex items-end p-4">
               {/* Simple XP bar chart */}
               {userProgress.history.map((xp, i) => (
-                <motion.div key={i} className="flex-1 mx-1 flex flex-col items-center" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}>
+                <Motion.div key={i} className="flex-1 mx-1 flex flex-col items-center" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}>
                   <div
                     className="w-4 rounded bg-blue-400"
                     style={{ height: `${(xp / nextXP) * 100}%`, minHeight: '10px' }}
                   ></div>
                   <span className="text-xs text-gray-400 mt-1">{xp} XP</span>
-                </motion.div>
+                </Motion.div>
               ))}
             </div>
           </div>
-        </motion.div>
+        </Motion.div>
       </main>
       <footer className="py-6 text-center text-gray-500 bg-white/80 mt-12">&copy; {new Date().getFullYear()} NoteWise. All rights reserved.</footer>
     </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 
 interface Message {
   content: string;
@@ -120,6 +120,10 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
     setShowNotification(false);
   };
 
+  const toggleFullScreen = () => {
+    setIsFullScreen(!isFullScreen);
+  };
+
   return (
     <>
       <button
@@ -139,31 +143,27 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
           <>
             {/* Dark transparent overlay for maximized mode */}
             {isFullScreen && (
-              <motion.div
+              <Motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-                onClick={() => setIsFullScreen(false)}
+                className="fixed inset-0 bg-black/50 z-40"
+                onClick={toggleFullScreen}
               />
             )}
 
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className={`fixed bg-white shadow-xl flex flex-col z-50 overflow-hidden rounded-lg ${
-                isFullScreen 
-                  ? 'top-[5%] left-[5%] right-[5%] bottom-[5%] w-[90%] h-[90%]' 
-                  : 'bottom-20 right-4 w-96 h-[500px]'
-              }`}
+              transition={{ duration: 0.3 }}
+              className={`relative bg-white rounded-lg shadow-lg overflow-hidden flex flex-col ${isFullScreen ? 'fixed inset-4 z-50' : 'w-full h-[500px]'}`}
             >
               <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-gray-900">Tutor Chat</h3>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setIsFullScreen(!isFullScreen)}
+                    onClick={toggleFullScreen}
                     className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                     aria-label={isFullScreen ? 'Minimize chat' : 'Maximize chat'}
                   >
@@ -220,11 +220,11 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
                 className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
               >
                 {messages.map((message, index) => (
-                  <motion.div
+                  <Motion.div
                     key={index}
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                    transition={{ duration: 0.3 }}
                     className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
@@ -241,10 +241,10 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
                         {message.timestamp.toLocaleTimeString()}
                       </span>
                     </div>
-                  </motion.div>
+                  </Motion.div>
                 ))}
                 {isSpeaking && (
-                  <motion.div
+                  <Motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className="flex justify-start"
@@ -256,7 +256,7 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
                         <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce delay-200" />
                       </div>
                     </div>
-                  </motion.div>
+                  </Motion.div>
                 )}
                 {/* Invisible div to scroll to */}
                 <div ref={messagesEndRef} />
@@ -283,7 +283,7 @@ export default function TutorChat({ onToggleMute, onEndSession, isMuted, isSpeak
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </Motion.div>
           </>
         )}
       </AnimatePresence>

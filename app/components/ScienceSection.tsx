@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { Brain, MessageSquare, Target } from 'lucide-react';
 import Image from 'next/image';
 
@@ -29,7 +29,7 @@ export const ScienceSection = () => {
   return (
     <section className="py-20 bg-white">
       <div className="container mx-auto px-4">
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
@@ -42,11 +42,11 @@ export const ScienceSection = () => {
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Notewise is built on proven learning science principles
           </p>
-        </motion.div>
+        </Motion.div>
 
         <div className="grid md:grid-cols-3 gap-8">
           {stats.map((stat, index) => (
-            <motion.div
+            <Motion.div
               key={index}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -73,7 +73,7 @@ export const ScienceSection = () => {
                   {stat.description}
                 </p>
               </div>
-            </motion.div>
+            </Motion.div>
           ))}
         </div>
       </div>

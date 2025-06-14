@@ -7,7 +7,7 @@ import { vapiService } from '@/lib/vapi';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import UserProfile from '../components/UserProfile';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import Link from "next/link";
 import { 
   Brain, 
@@ -65,13 +65,13 @@ interface WelcomeBannerProps {
 
 function StreakAnimation({ streak }: { streak: number }) {
   return (
-    <motion.div
+    <Motion.div
       className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 shadow-xl text-white flex flex-col items-center justify-center min-w-[150px] md:min-w-[200px] transition-all duration-300"
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: 0.8, duration: 0.5 }}
     >
-      <motion.div
+      <Motion.div
         key={streak}
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -79,9 +79,9 @@ function StreakAnimation({ streak }: { streak: number }) {
         className="text-6xl font-extrabold drop-shadow-lg text-yellow-300"
       >
         {streak === 0 ? 1 : streak}
-      </motion.div>
+      </Motion.div>
       <p className="text-lg font-semibold text-blue-100 mt-2">Day Streak</p>
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -94,7 +94,7 @@ function WelcomeBanner({ userName, xp, level, streak }: WelcomeBannerProps) {
   const progress = level && xp ? ((xp - getCurrentLevelXP(level)) / (getNextLevelXP(level) - getCurrentLevelXP(level)) * 100) : 0;
 
   return (
-    <motion.div 
+    <Motion.div 
       className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-2xl p-8 mb-8 shadow-2xl text-white relative "
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -109,26 +109,26 @@ function WelcomeBanner({ userName, xp, level, streak }: WelcomeBannerProps) {
       <div className="relative flex flex-col md:flex-row justify-between items-start h-full w-full">
         <div className="flex flex-col gap-6 w-full md:w-auto flex-shrink-0">
           <div className="flex-grow text-center md:text-left">
-            <motion.h2 
+            <Motion.h2 
               className="text-4xl md:text-5xl font-bold mb-2"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
             >
               Welcome back, {userName || 'Student'}!
-            </motion.h2>
-            <motion.p 
+            </Motion.h2>
+            <Motion.p 
               className="text-blue-100 text-lg md:text-xl"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
             >
               Ready to continue your learning journey?
-            </motion.p>
+            </Motion.p>
           </div>
 
           {/* Level Progress Card - Made smaller and less prominent, positioned below welcome text */}
-          <motion.div 
+          <Motion.div 
             className="bg-white/10 backdrop-blur-sm rounded-xl p-4 w-full max-w-xs"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -144,7 +144,7 @@ function WelcomeBanner({ userName, xp, level, streak }: WelcomeBannerProps) {
                 <span className="text-sm text-blue-200">{xp || 0} XP</span>
               </div>
               <div className="w-full bg-white/20 rounded-full h-1.5">
-                <motion.div
+                <Motion.div
                   className="bg-gradient-to-r from-yellow-400 to-orange-500 h-1.5 rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${progress}%` }}
@@ -155,12 +155,12 @@ function WelcomeBanner({ userName, xp, level, streak }: WelcomeBannerProps) {
                 {getNextLevelXP(level || 1) - (xp || 0)} XP to next level
               </p>
             </div>
-          </motion.div>
+          </Motion.div>
         </div>
 
         <StreakAnimation streak={streak || 0} />
       </div>
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -184,7 +184,7 @@ function DailyTip() {
   }, []);
 
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 1.0 }}
@@ -206,7 +206,7 @@ function DailyTip() {
           <p className="text-white italic">"{currentTip}"</p>
         </CardContent>
       </Card>
-    </motion.div>
+    </Motion.div>
   );
 }
 
@@ -521,7 +521,7 @@ export default function DashboardPage() {
         </div>
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
@@ -541,7 +541,7 @@ export default function DashboardPage() {
                 Logout
               </Button>
             </nav>
-          </motion.div>
+          </Motion.div>
         )}
       </header>
 
@@ -569,7 +569,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mt-8">
               {/* Left Column - Quick Actions */}
               <div className="xl:col-span-2 space-y-8">
-                <motion.div
+                <Motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 1.2 }}
@@ -619,7 +619,7 @@ export default function DashboardPage() {
                       </div>
                     </CardContent>
                   </Card>
-                </motion.div>
+                </Motion.div>
               </div>
 
               {/* Right Column - Daily Tip */}

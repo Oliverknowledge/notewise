@@ -1,5 +1,7 @@
+'use client';
+
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 
 const leaderboard = [
   { name: 'Alex', xp: 1200, level: 5, badges: ['Math Whiz', '7-Day Streak'] },
@@ -27,11 +29,11 @@ export default function LeaderboardPage() {
         </nav>
       </header>
       <main className="flex-1 flex flex-col items-center justify-center px-4">
-        <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl flex flex-col items-center mt-12">
+        <Motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl flex flex-col items-center mt-12">
           <h1 className="text-3xl font-bold text-blue-800 mb-6">Leaderboard</h1>
           <div className="w-full flex flex-col gap-4">
             {leaderboard.map((user, i) => (
-              <motion.div
+              <Motion.div
                 key={user.name}
                 className={`flex items-center justify-between px-4 py-3 rounded-lg shadow-sm ${i < 3 ? medalColors[i] : 'bg-blue-50 text-blue-900'} font-semibold`}
                 initial={{ opacity: 0, x: -40 }}
@@ -49,10 +51,10 @@ export default function LeaderboardPage() {
                     <span key={badge} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-semibold border border-green-300 shadow-sm ml-1">{badge}</span>
                   ))}
                 </div>
-              </motion.div>
+              </Motion.div>
             ))}
           </div>
-        </motion.div>
+        </Motion.div>
       </main>
       <footer className="py-6 text-center text-gray-500 bg-white/80 mt-12">&copy; {new Date().getFullYear()} NoteWise. All rights reserved.</footer>
     </div>

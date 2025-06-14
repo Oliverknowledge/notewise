@@ -34,12 +34,17 @@ export default function NoteUploadForm() {
       // Read the file content
       const text = await formData.file.text();
 
-      // Process the notes and get initial response
-      const response = await vapiService.processNotes(text);
-      setInitialResponse(response);
+      // Start the tutoring session
+      await vapiService.startTutoringSession(
+        text,
+        'explain',
+        formData.subject,
+        false
+      );
+      setInitialResponse("Session started successfully. You can now interact with your AI tutor.");
       setIsSessionActive(true);
 
-      // The tutoring session is already started by processNotes
+      // The tutoring session is already started
     } catch (err) {
       console.error('Error starting tutoring session:', err);
       setError(err instanceof Error ? err.message : 'Failed to start tutoring session');

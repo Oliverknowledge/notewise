@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase-client";
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
 
 export default function SignupPage() {
@@ -46,7 +46,7 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
-      <motion.div 
+      <Motion.div 
         initial={{ opacity: 0, y: 40 }} 
         animate={{ opacity: 1, y: 0 }} 
         transition={{ duration: 0.7 }} 
@@ -113,7 +113,7 @@ export default function SignupPage() {
             Login
           </Link>
         </div>
-      </motion.div>
+      </Motion.div>
     </div>
   );
 } 

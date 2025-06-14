@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { Upload, MessageSquare, Brain } from 'lucide-react';
 import Image from 'next/image';
 
@@ -29,7 +29,7 @@ export const SolutionSection = () => {
   return (
     <section className="py-20 bg-gradient-to-br from-blue-50 to-indigo-50">
       <div className="container mx-auto px-4">
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
@@ -42,11 +42,11 @@ export const SolutionSection = () => {
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Three simple steps to transform your study experience
           </p>
-        </motion.div>
+        </Motion.div>
 
         <div className="grid md:grid-cols-3 gap-8">
           {steps.map((step, index) => (
-            <motion.div
+            <Motion.div
               key={index}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -73,7 +73,7 @@ export const SolutionSection = () => {
                   {step.description}
                 </p>
               </div>
-            </motion.div>
+            </Motion.div>
           ))}
         </div>
       </div>

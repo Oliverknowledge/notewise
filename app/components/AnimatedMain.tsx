@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 
 export function AnimatedMain() {
   return (
     <main className="flex-1 flex flex-col items-center justify-center text-center px-4">
-      <motion.section
+      <Motion.section
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
@@ -16,11 +16,11 @@ export function AnimatedMain() {
         <p className="text-xl md:text-2xl text-green-700 mb-8 max-w-2xl mx-auto">
           <span className="font-bold text-blue-700">NoteWise</span> is your AI-powered learning companion. Upload your notes, get instant explanations, track your progress, and stay motivated with gamified learning. Whether you're prepping for exams or mastering new topics, NoteWise helps you learn smarter, not harder.
         </p>
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.4, duration: 0.5 }}>
+        <Motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.4, duration: 0.5 }}>
           <Link href="/signup" className="bg-gradient-to-r from-blue-500 to-green-500 text-white px-10 py-4 rounded-full text-2xl font-bold shadow-lg hover:scale-105 transition">Get Started Free</Link>
-        </motion.div>
-      </motion.section>
-      <motion.section
+        </Motion.div>
+      </Motion.section>
+      <Motion.section
         className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 mb-16"
         initial="hidden"
         animate="visible"
@@ -58,7 +58,7 @@ export function AnimatedMain() {
           color: 'text-green-400',
           titleColor: 'text-green-700',
         }].map((feature, i) => (
-          <motion.div
+          <Motion.div
             key={feature.title}
             className="bg-white rounded-lg shadow p-8 flex flex-col items-center"
             initial={{ opacity: 0, y: 40 }}
@@ -68,9 +68,9 @@ export function AnimatedMain() {
             <div className={`text-4xl mb-2 ${feature.color}`}>{feature.icon}</div>
             <div className={`font-bold text-xl mb-1 ${feature.titleColor}`}>{feature.title}</div>
             <div className="text-gray-600 text-lg text-center">{feature.desc}</div>
-          </motion.div>
+          </Motion.div>
         ))}
-      </motion.section>
+      </Motion.section>
     </main>
   );
 } 

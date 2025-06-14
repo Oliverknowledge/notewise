@@ -1,8 +1,6 @@
-"use server"
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import pdfParse from 'pdf-parse';
 
 export async function GET(request: Request) {
   console.log('[UPLOAD FILE API] GET request received');
@@ -19,8 +17,6 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   console.log('[UPLOAD FILE API] POST request received');
   try {
-    // Test 1: Basic request handling
-    console.log('[UPLOAD FILE API] Testing basic request handling');
     const formData = await request.formData();
     const file = formData.get('file') as File;
     
@@ -35,19 +31,15 @@ export async function POST(request: Request) {
       size: file.size
     });
 
-    // Test 2: Text extraction
-    console.log('[UPLOAD FILE API] Starting text extraction...');
     let extractedText = '';
     try {
-      console.log('[UPLOAD FILE API] Creating file buffer...');
       const arrayBuffer = await file.arrayBuffer();
-      console.log('[UPLOAD FILE API] Array buffer size:', arrayBuffer.byteLength);
-      
       const fileBuffer = Buffer.from(arrayBuffer);
-      console.log('[UPLOAD FILE API] File buffer created, size:', fileBuffer.length);
       
       if (file.type === 'application/pdf') {
         console.log('[UPLOAD FILE API] Processing PDF file...');
+        // Dynamically import pdf-parse only when needed
+        const pdfParse = (await import('pdf-parse')).default;
         const pdfData = await pdfParse(fileBuffer);
         extractedText = pdfData.text || '';
         console.log(`[UPLOAD FILE API] Extracted ${extractedText.length} chars from PDF`);
@@ -61,7 +53,6 @@ export async function POST(request: Request) {
       }
     } catch (extractionError) {
       console.error('[UPLOAD FILE API] Text extraction error:', extractionError);
-      console.error('[UPLOAD FILE API] Error stack:', extractionError instanceof Error ? extractionError.stack : 'No stack trace');
       return NextResponse.json({ 
         error: 'Failed to extract text from file',
         details: extractionError instanceof Error ? extractionError.message : 'Unknown error',
@@ -70,15 +61,12 @@ export async function POST(request: Request) {
       }, { status: 500 });
     }
 
-    // Test 3: Supabase connection
-    console.log('[UPLOAD FILE API] Testing Supabase connection');
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-    // Test 4: File upload to Supabase
     const id = crypto.randomUUID();
     const fileExt = file.name.split('.').pop();
-    const fileName = `test/${Date.now()}.${fileExt}`;
+    const fileName = `${id}.${fileExt}`;
     
     console.log('[UPLOAD FILE API] Attempting file upload to Supabase');
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -105,7 +93,6 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('[UPLOAD FILE API] Error:', error);
-    console.error('[UPLOAD FILE API] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json({ 
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'

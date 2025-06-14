@@ -12,7 +12,8 @@ const nextConfig = {
         protocol: "https",
         hostname: "images.unsplash.com"
       }]
-    }
+    },
+    transpilePackages: ['framer-motion']
   }
    
   module.exports = nextConfig

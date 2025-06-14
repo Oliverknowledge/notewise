@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { Mic, MicOff, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import TutorChat from '../components/TutorChat';
 import Link from 'next/link';

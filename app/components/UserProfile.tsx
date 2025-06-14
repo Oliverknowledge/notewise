@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent } from '@/components/ui/card';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 
 interface UserProfileProps {
   profile: {
@@ -23,7 +23,7 @@ const UserProfile = ({ profile }: UserProfileProps) => {
   const getNextLevelXP = (level: number) => (level + 1) ** 2 * 100;
 
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
@@ -57,7 +57,7 @@ const UserProfile = ({ profile }: UserProfileProps) => {
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </Motion.div>
   );
 };
 

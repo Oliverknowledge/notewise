@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase-client";
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -43,7 +43,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
-      <motion.div 
+      <Motion.div 
         initial={{ opacity: 0, y: 40 }} 
         animate={{ opacity: 1, y: 0 }} 
         transition={{ duration: 0.7 }} 
@@ -87,7 +87,7 @@ export default function LoginPage() {
             Sign Up
           </Link>
         </div>
-      </motion.div>
+      </Motion.div>
     </div>
   );
 } 

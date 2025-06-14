@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -8,7 +8,7 @@ export const HeroSection = () => {
   return (
     <section className="min-h-[90vh] flex items-center justify-center px-4 py-20 bg-gradient-to-br from-blue-50 to-indigo-50">
       <div className="container mx-auto grid md:grid-cols-2 gap-12 items-center">
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
@@ -28,9 +28,9 @@ export const HeroSection = () => {
               Get Started
             </Link>
           </div>
-        </motion.div>
+        </Motion.div>
         
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
@@ -46,7 +46,7 @@ export const HeroSection = () => {
               priority
             />
           </div>
-        </motion.div>
+        </Motion.div>
       </div>
     </section>
   );

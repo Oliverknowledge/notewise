@@ -1,11 +1,11 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import Link from 'next/link';
 
 export function AnimatedHeader() {
   return (
-    <motion.div 
+    <Motion.div 
       initial={{ opacity: 0, x: -40 }} 
       animate={{ opacity: 1, x: 0 }} 
       transition={{ duration: 0.7 }} 
@@ -14,6 +14,6 @@ export function AnimatedHeader() {
       <Link href = "/">
       NoteWise
       </Link>
-    </motion.div>
+    </Motion.div>
   );
 } 
