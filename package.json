@@ -23,7 +23,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "formidable": "^3.5.4",
-    "framer-motion": "^10.16.4",
+    "framer-motion": "^12.18.1",
     "lucide-react": "^0.511.0",
     "mammoth": "^1.9.1",
     "next": "^15.3.3",
